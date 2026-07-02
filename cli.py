@@ -1,12 +1,19 @@
 """
-Phase 1 CLI: paste a job description in, get an eligibility decision out,
-optionally save it to the database so it's browsable in DBeaver.
+Phase 1 CLI. Only the job file path is required -- everything else comes
+from either config/candidate.yaml (your info, preferences, exclusion
+rules) or is auto-extracted from the job text itself (title, company,
+location, work mode, recruiter contact). You should never need to
+manually type your own location/visa/work-mode preferences -- those live
+in candidate.yaml. The optional override flags exist only for the rare
+case where auto-extraction guesses wrong on a specific posting.
 
 Usage:
-    python cli.py check-job --file path/to/job.txt --location "Austin, TX" --work-mode hybrid
-    python cli.py check-job --file path/to/job.txt --location "Austin, TX" --work-mode hybrid --no-save
+    python cli.py check-job sample_jobs/some_job.txt
+    python cli.py check-job sample_jobs/some_job.txt --location "Austin, TX"   # override, rarely needed
+    python cli.py check-job sample_jobs/some_job.txt --no-save
     python cli.py list-jobs
     python cli.py list-jobs --status skipped
+    python cli.py list-recruiters
 """
 from __future__ import annotations
 
@@ -19,18 +26,50 @@ load_dotenv()  # reads .env in the current directory, if present, into os.enviro
 
 from config.loader import load_config
 from core.eligibility import evaluate_eligibility
+from core.extraction import (
+    extract_company_name,
+    extract_emails,
+    extract_job_title,
+    extract_location,
+    extract_recruiter_name,
+    extract_work_mode,
+)
 
 
 def cmd_check_job(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     text = Path(args.file).read_text(encoding="utf-8")
 
+    # Everything below is auto-extracted from the job text by default.
+    # Explicit flags (all optional) override a specific field only when
+    # auto-extraction guesses wrong for a particular posting.
+    job_title = args.title or extract_job_title(text) or Path(args.file).stem
+    location = args.location or extract_location(text)
+    work_mode = args.work_mode or extract_work_mode(text)
+    emails_found = extract_emails(text)
+    recruiter_email = args.recruiter_email or (emails_found[0] if emails_found else None)
+    recruiter_name = args.recruiter_name or extract_recruiter_name(text, recruiter_email)
+    company_name = args.company or extract_company_name(text, recruiter_email)
+
+    print(f"Job title: {job_title}")
+    if location:
+        print(f"Location: {location}")
+    if work_mode:
+        print(f"Work mode: {work_mode}")
+    if company_name:
+        print(f"Company: {company_name}")
+    if recruiter_email:
+        extra = f" ({recruiter_name})" if recruiter_name else ""
+        print(f"Recruiter: {recruiter_email}{extra}")
+    if len(emails_found) > 1:
+        print(f"[Note: {len(emails_found)} email addresses found in posting: {emails_found}. Using the first as primary.]")
+
     result = evaluate_eligibility(
         job_description_text=text,
         candidate=cfg.candidate,
         search_config=cfg.search,
-        job_location=args.location,
-        job_work_mode=args.work_mode,
+        job_location=location,
+        job_work_mode=work_mode,
     )
 
     print(f"Status: {result.status.value}")
@@ -51,7 +90,6 @@ def cmd_check_job(args: argparse.Namespace) -> None:
         from db.session import get_session_factory
         from db.repository import save_job_check
 
-        job_title = args.title or Path(args.file).stem
         SessionFactory = get_session_factory()
         with SessionFactory() as session:
             job = save_job_check(
@@ -59,9 +97,11 @@ def cmd_check_job(args: argparse.Namespace) -> None:
                 job_title=job_title,
                 description_text=text,
                 eligibility_result=result,
-                company_name=args.company,
-                location=args.location,
-                work_mode=args.work_mode,
+                company_name=company_name,
+                location=location,
+                work_mode=work_mode,
+                recruiter_email=recruiter_email,
+                recruiter_name=recruiter_name,
             )
             print(f"Saved as job id {job.id} (status: {job.status})")
     except Exception as e:
@@ -85,8 +125,25 @@ def cmd_list_jobs(args: argparse.Namespace) -> None:
 
         for job in jobs:
             print(f"[{job.id}] {job.status:15s} | {job.job_title} @ {job.company_name or '-'} | {job.location or '-'}")
+            if job.recruiter_email:
+                print(f"      recruiter: {job.recruiter_email}" + (f" ({job.recruiter_name})" if job.recruiter_name else ""))
             if job.skip_reason:
                 print(f"      reason: {job.skip_reason}")
+
+
+def cmd_list_recruiters(args: argparse.Namespace) -> None:
+    from db.session import get_session_factory
+    from db.models import Recruiter, JobContact
+
+    SessionFactory = get_session_factory()
+    with SessionFactory() as session:
+        recruiters = session.query(Recruiter).order_by(Recruiter.updated_at.desc()).limit(args.limit).all()
+        if not recruiters:
+            print("No recruiters found.")
+            return
+        for r in recruiters:
+            job_count = session.query(JobContact).filter_by(recruiter_id=r.id).count()
+            print(f"[{r.id}] {r.email:35s} | {r.name or '-':20s} | {r.company_name or '-':20s} | {job_count} job(s)")
 
 
 def main() -> None:
@@ -94,12 +151,14 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     check_job = sub.add_parser("check-job", help="Run the eligibility filter on a job description file")
+    check_job.add_argument("file", help="Path to a .txt file containing the job description")
     check_job.add_argument("--config", default="config/candidate.yaml")
-    check_job.add_argument("--file", required=True, help="Path to a .txt file containing the job description")
-    check_job.add_argument("--location", default=None)
-    check_job.add_argument("--work-mode", default=None, choices=["remote", "hybrid", "onsite"])
-    check_job.add_argument("--title", default=None, help="Job title; defaults to the input filename")
-    check_job.add_argument("--company", default=None)
+    check_job.add_argument("--location", default=None, help="Override auto-detected location (rarely needed)")
+    check_job.add_argument("--work-mode", default=None, choices=["remote", "hybrid", "onsite"], help="Override auto-detected work mode (rarely needed)")
+    check_job.add_argument("--title", default=None, help="Override auto-detected job title (rarely needed)")
+    check_job.add_argument("--company", default=None, help="Override auto-detected company (rarely needed)")
+    check_job.add_argument("--recruiter-email", default=None, help="Override auto-detected recruiter email (rarely needed)")
+    check_job.add_argument("--recruiter-name", default=None, help="Override auto-detected recruiter name (rarely needed)")
     check_job.add_argument("--no-save", action="store_true", help="Run the check without writing to the database")
     check_job.set_defaults(func=cmd_check_job)
 
@@ -107,6 +166,10 @@ def main() -> None:
     list_jobs.add_argument("--status", default=None, choices=["discovered", "skipped", "needs_review"])
     list_jobs.add_argument("--limit", type=int, default=20)
     list_jobs.set_defaults(func=cmd_list_jobs)
+
+    list_recruiters = sub.add_parser("list-recruiters", help="List recruiters saved to the database")
+    list_recruiters.add_argument("--limit", type=int, default=20)
+    list_recruiters.set_defaults(func=cmd_list_recruiters)
 
     args = parser.parse_args()
     args.func(args)

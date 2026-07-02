@@ -239,3 +239,15 @@ def test_negated_clearance_phrase_in_excluded_keywords_list_stays_eligible(candi
         candidate, search, job_location="Remote", job_work_mode="remote",
     )
     assert result.status == EligibilityStatus.ELIGIBLE
+
+
+def test_skips_independent_visa_only(candidate, search):
+    # Staffing-industry jargon: "Independent Visa Only" excludes H1B
+    # candidates (who require sponsorship/transfer) without using the
+    # word "sponsorship" directly.
+    result = evaluate_eligibility(
+        "Visa: Independent Visa Only. H4 EAD Candidates must be Local. "
+        "Java, Spring Boot, Hibernate role.",
+        candidate, search, job_location="Mountain View, CA", job_work_mode="hybrid",
+    )
+    assert result.status == EligibilityStatus.SKIPPED

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from config.schema import CandidateConfig
 from core.eligibility import EligibilityResult, EligibilityStatus
-from db.models import Job, JobSource
+from db.models import Job, JobContact, JobSource, Recruiter
 
 
 def _dedup_hash(job_title: str, company_name: str | None, location: str | None) -> str:
@@ -42,6 +42,50 @@ def get_or_create_source(session: Session, source_name: str, source_type: str = 
     return source
 
 
+def get_or_create_recruiter(
+    session: Session,
+    email: str,
+    *,
+    name: str | None = None,
+    company_name: str | None = None,
+    source_name: str | None = None,
+) -> Recruiter:
+    """Email is the identity key for a recruiter -- the same person posts
+    many jobs across many boards, and applying against 'this recruiter'
+    rather than 'this one job' only works if their contact record is
+    shared, not duplicated per posting. New info (name/company) fills in
+    blanks on an existing record but doesn't overwrite what's already
+    there, since a later, sparser posting shouldn't erase a better name
+    or company captured earlier."""
+    email_normalized = email.strip().lower()
+    recruiter = session.query(Recruiter).filter_by(email=email_normalized).one_or_none()
+    if recruiter is None:
+        recruiter = Recruiter(
+            email=email_normalized,
+            name=name,
+            company_name=company_name,
+            source_name=source_name,
+        )
+        session.add(recruiter)
+        session.flush()
+    else:
+        if name and not recruiter.name:
+            recruiter.name = name
+        if company_name and not recruiter.company_name:
+            recruiter.company_name = company_name
+    return recruiter
+
+
+def link_job_to_recruiter(session: Session, job: Job, recruiter: Recruiter, role: str = "primary") -> None:
+    existing = (
+        session.query(JobContact)
+        .filter_by(job_id=job.id, recruiter_id=recruiter.id)
+        .one_or_none()
+    )
+    if existing is None:
+        session.add(JobContact(job_id=job.id, recruiter_id=recruiter.id, role=role))
+
+
 def save_job_check(
     session: Session,
     *,
@@ -53,12 +97,14 @@ def save_job_check(
     location: str | None = None,
     work_mode: str | None = None,
     job_url: str | None = None,
+    recruiter_email: str | None = None,
+    recruiter_name: str | None = None,
 ) -> Job:
-    """Persists one job + its eligibility decision. Idempotent on
-    (source, dedup_hash): re-checking the same job_title/company/location
-    updates the existing row (fresh status, updated_at) rather than creating
-    a duplicate -- so re-running check-job on the same posting after a
-    config change doesn't pile up copies."""
+    """Persists one job + its eligibility decision, and -- if a recruiter
+    email is provided -- the recruiter contact, linked via job_contacts.
+    Idempotent on (source, dedup_hash) for the job, and on email for the
+    recruiter: re-checking the same posting or hearing from the same
+    recruiter again updates existing rows rather than duplicating them."""
     source = get_or_create_source(session, source_name)
     dedup_hash = _dedup_hash(job_title, company_name, location)
 
@@ -91,6 +137,22 @@ def save_job_check(
     job.skip_reason = eligibility_result.reason
     job.last_checked_at = datetime.now(timezone.utc)
 
+    if recruiter_email:
+        job.recruiter_name = recruiter_name
+        job.recruiter_email = recruiter_email.strip().lower()
+
     session.commit()
     session.refresh(job)
+
+    if recruiter_email:
+        recruiter = get_or_create_recruiter(
+            session,
+            recruiter_email,
+            name=recruiter_name,
+            company_name=company_name,
+            source_name=source_name,
+        )
+        link_job_to_recruiter(session, job, recruiter)
+        session.commit()
+
     return job

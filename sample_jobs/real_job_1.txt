@@ -1,0 +1,34 @@
+Hiring: Lead Java Developer 🚀
+
+📍 Location: Mountain View, CA (Onsite/Hybrid)
+📄 Duration: Long Term
+🆔 Visa: Independent Visa Only
+⚠️ H4 EAD Candidates must be Local
+✅ Relocation is Fine
+
+We are looking for an experienced Lead Java Developer with strong full-stack development expertise.
+
+🔹 Client Requirements:
+✅ Latest Java Version Experience
+✅ Latest Spring Boot Web Applications
+✅ Hibernate Layer integrated with DB
+✅ Working Sample Application with GET & POST APIs
+🔹 Job Responsibilities & Required Skills:
+✅ 10+ years of experience in Java / J2EE Technologies
+✅ Strong experience in Spring Boot, Spring MVC, Spring Security, Spring Data & JPA
+✅ Hands-on experience with Spring Reactive & Spring WebFlux
+✅ Front-End experience with React, Angular, Node.js & TypeScript
+✅ Expertise in JavaScript, HTML5 & CSS3
+✅ Strong knowledge of SQL & NoSQL Databases
+✅ Experience with CockroachDB or Distributed SQL Databases preferred
+✅ Knowledge of Apache Kafka & Kubernetes
+✅ Cloud experience with AWS, Azure or GCP
+✅ Experience with Jenkins, Terraform & CI/CD Pipelines
+✅ Understanding of Container Security & Microservices Architecture
+
+📩 Interested candidates, please share your updated resume:
+
+Rachael
+IT Services | Development | Staffing
+rachael@sidramtech.com
+adam@sidramtech.com

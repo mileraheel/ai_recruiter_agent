@@ -55,6 +55,15 @@ _CITIZENSHIP_OR_NO_SPONSORSHIP_PATTERNS = [
     r"\bH-?1B\s*not\s*accepted\b",
     r"\bmust\s*be\s*authorized\s*(to\s*work\s*)?without\s*sponsorship\b",
     r"\bmust\s*not\s*require\s*sponsorship\s*(now\s*or\s*in\s*the\s*future)?\b",
+    # Staffing/C2C industry jargon: "Independent Visa" / "Independent
+    # candidates" means candidates whose work authorization doesn't
+    # require an employer to sponsor or transfer anything -- i.e. GC,
+    # USC, TN, H4-EAD, OPT-EAD, etc. This effectively excludes H1B
+    # holders (who require sponsorship/transfer), even though it doesn't
+    # use the word "sponsorship" directly.
+    r"\bindependent\s*visa\s*(only)?\b",
+    r"\bindependent\s*(candidates?|consultants?)\s*only\b",
+    r"\bmust\s*have\s*independent\s*(work\s*)?authorization\b",
 ]
 
 _W2_ONLY_PATTERNS = [
