@@ -4,3 +4,5 @@ __pycache__/
 .pytest_cache/
 resumes/master_resume.docx
 .idea/
+generated/
+backups/

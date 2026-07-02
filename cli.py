@@ -34,6 +34,7 @@ from core.extraction import (
     extract_recruiter_name,
     extract_work_mode,
 )
+from core.signature import generate_signature
 
 
 def cmd_check_job(args: argparse.Namespace) -> None:
@@ -148,6 +149,22 @@ def cmd_list_recruiters(args: argparse.Namespace) -> None:
             print(f"{c.recruiter_email:35s} | {c.recruiter_name or '-':20s} | {c.recruiter_company or '-':20s} | {job_count} job(s)")
 
 
+def cmd_generate_signature(args: argparse.Namespace) -> None:
+    from pathlib import Path as _Path
+
+    cfg = load_config(args.config)
+    signature_text = generate_signature(cfg.candidate)
+
+    out_dir = _Path(args.output_dir)
+    out_dir.mkdir(exist_ok=True)
+    stem = _Path(args.file).stem
+    out_path = out_dir / f"{stem}_signature.txt"
+    out_path.write_text(signature_text, encoding="utf-8")
+
+    print(signature_text)
+    print(f"\nSaved to: {out_path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="AI Recruiter Agent -- Phase 1 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -172,6 +189,12 @@ def main() -> None:
     list_recruiters = sub.add_parser("list-recruiters", help="List recruiters saved to the database")
     list_recruiters.add_argument("--limit", type=int, default=20)
     list_recruiters.set_defaults(func=cmd_list_recruiters)
+
+    generate_signature_parser = sub.add_parser("generate-signature", help="Generate an email signature for a job (temporary folder-based storage for testing)")
+    generate_signature_parser.add_argument("file", help="Job file this signature is paired with (used only for output naming)")
+    generate_signature_parser.add_argument("--config", default="config/candidate.yaml")
+    generate_signature_parser.add_argument("--output-dir", default="generated")
+    generate_signature_parser.set_defaults(func=cmd_generate_signature)
 
     args = parser.parse_args()
     args.func(args)
