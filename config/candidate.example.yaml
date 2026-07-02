@@ -1,0 +1,134 @@
+version: 1
+
+candidate:
+  full_name: "Raheel Ahmed Khan"
+  email: "${CANDIDATE_EMAIL}"
+  phone: "${CANDIDATE_PHONE}"
+  location: "Sudley, VA"
+  linkedin_url: "https://www.linkedin.com/in/example"
+  base_resume_path: "resumes/master_resume.docx"
+  work_authorization: "H1B"
+  requires_sponsorship_or_transfer: true
+  c2c_allowed: true
+  w2_allowed: false
+  contract_allowed: true
+  contract_to_hire_allowed: true
+  full_time_allowed: false
+  has_security_clearance: false
+  public_trust_available: false
+  willing_to_work_remote: true
+  willing_to_work_hybrid: true
+  willing_to_work_onsite: false
+
+search:
+  keywords:
+    - "Senior Java Developer"
+    - "Java Technical Lead"
+    - "Principal Java Engineer"
+    - "Java Architect"
+    - "Spring Boot Developer"
+    - "Java Angular Developer"
+    - "AI Solution Architect"
+    - "Agentic AI"
+    - "RAG"
+  required_keywords:
+    - "Java"
+    - "Spring Boot"
+  nice_to_have_keywords:
+    - "Kafka"
+    - "AWS"
+    - "Azure"
+    - "Kubernetes"
+    - "OpenShift"
+    - "Angular"
+    - "LangChain"
+    - "LangGraph"
+    - "RAG"
+    - "Microservices"
+  excluded_keywords:
+    - "US Citizen only"
+    - "Green Card only"
+    - "USC/GC only"
+    - "No sponsorship"
+    - "Unable to sponsor"
+    - "No H1B"
+    - "H1B not accepted"
+    - "W2 only"
+    - "No C2C"
+    - "No third party"
+    - "No vendors"
+    - "Clearance required"
+  locations:
+    - "Remote"
+    - "New Jersey"
+    - "New York"
+    - "Virginia"
+    - "Maryland"
+    - "Washington DC"
+    - "Texas"
+    - "Chicago"
+  work_mode:
+    - "remote"
+    - "hybrid"
+  employment_type:
+    - "contract"
+    - "contract-to-hire"
+    - "C2C"
+
+sources:
+  linkedin_jobs:
+    enabled: true
+    mode: "human_in_loop"
+  linkedin_posts:
+    enabled: true
+    mode: "human_in_loop"
+  dice:
+    enabled: false      # flip to true once the adapter is built and tested
+    mode: "browser_automated"
+  monster:
+    enabled: false
+    mode: "browser_automated"
+  techfetch:
+    enabled: false
+    mode: "browser_automated"
+  generic_c2c:
+    enabled: false
+    mode: "configurable_source_adapter"
+
+limits:
+  max_jobs_per_day: 50
+  max_emails_per_day: 20
+  max_applications_per_day: 20
+  max_browser_actions_per_source_per_day: 100
+  delay_between_actions_seconds_min: 45
+  delay_between_actions_seconds_max: 180
+  session_reuse_enabled: true
+  dry_run_mode: true
+  require_human_approval_before_send: true
+  require_human_approval_before_apply: true
+  circuit_breaker_error_threshold: 3
+  pause_on_captcha_detected: true
+  pause_on_unexpected_page_structure: true
+
+follow_up:
+  first_follow_up_after_days: 2
+  follow_up_every_days: 2
+  max_follow_ups: 3
+  stop_follow_up_on_reply: true
+  stop_follow_up_on_rejection: true
+  stop_follow_up_if_recruiter_says_no: true
+
+resume_refresh:
+  enabled: true
+  frequency: "weekly"
+  sources:
+    - "Dice"
+    - "Monster"
+    - "TechFetch"
+  rule: "Refresh or re-upload resume only where the platform allows normal resume replacement. Do not bypass restrictions. Pause for human approval if manual upload is required."
+
+email:
+  provider: "gmail_or_microsoft_graph"
+  from_email: "${SENDER_EMAIL}"
+  send_mode: "draft_first"
+  signature_enabled: true
