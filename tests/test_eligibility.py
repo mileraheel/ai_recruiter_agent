@@ -195,3 +195,47 @@ def test_categorized_reason_preferred_over_generic_when_both_match(candidate):
     assert result.status == EligibilityStatus.SKIPPED
     assert "sponsorship" in result.reason.lower()
     assert "excluded keyword" not in result.reason.lower()
+
+
+@pytest.mark.parametrize("phrase", [
+    "This position requires an active security clearance.",
+    "Candidate must possess a current security clearance.",
+    "Must have active DoD Secret clearance.",
+    "Requires TS/SCI clearance.",
+    "US Government security clearance needed.",
+])
+def test_skips_real_world_clearance_phrasing_variants(candidate, search, phrase):
+    # Regression coverage: the original hardcoded patterns only matched
+    # rigid phrasings like "security clearance required" and missed all
+    # of these common real-world variants, letting clearance-required
+    # jobs through as eligible.
+    result = evaluate_eligibility(phrase, candidate, search, job_location="Remote", job_work_mode="remote")
+    assert result.status == EligibilityStatus.SKIPPED, f"Failed to skip: {phrase}"
+
+
+@pytest.mark.parametrize("phrase", [
+    "Great Java Spring Boot contract role, remote, C2C accepted, no clearance needed.",
+    "No security clearance required. Remote Java Spring Boot role.",
+])
+def test_negated_clearance_language_stays_eligible(candidate, search, phrase):
+    # Regression coverage: proximity-based matching (needed to catch the
+    # variants above) can over-match negated phrasing like "no clearance
+    # required" unless explicitly guarded against.
+    result = evaluate_eligibility(phrase, candidate, search, job_location="Remote", job_work_mode="remote")
+    assert result.status == EligibilityStatus.ELIGIBLE, f"Incorrectly skipped: {phrase}"
+
+
+def test_negated_clearance_phrase_in_excluded_keywords_list_stays_eligible(candidate):
+    # Regression coverage: the config-driven excluded_keywords fallback
+    # does substring matching, which -- without a negation guard -- would
+    # match "security clearance required" inside "No security clearance
+    # required" and incorrectly skip the job.
+    search = SearchConfig(
+        locations=["Remote"],
+        excluded_keywords=["Security clearance required"],
+    )
+    result = evaluate_eligibility(
+        "No security clearance required. Remote Java Spring Boot role.",
+        candidate, search, job_location="Remote", job_work_mode="remote",
+    )
+    assert result.status == EligibilityStatus.ELIGIBLE

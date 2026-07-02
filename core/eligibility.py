@@ -72,9 +72,32 @@ _NO_C2C_PATTERNS = [
 ]
 
 _SECURITY_CLEARANCE_PATTERNS = [
-    r"\bsecurity\s*clearance\s*(is\s*)?required\b",
-    r"\bactive\s*clearance\s*required\b",
-    r"\bmust\s*have\s*(an?\s*)?(active\s*)?(secret|top\s*secret|ts/sci)\s*clearance\b",
+    # Explicit clearance type named directly before "clearance"
+    r"\b(secret|top\s*secret|ts\s*/?\s*sci)\s*clearance\b",
+    # "clearance" near a requirement word, in either order, allowing a
+    # bounded gap for words in between (e.g. "clearance is required",
+    # "active security clearance needed", "required to hold a clearance").
+    # This proximity approach -- rather than exact adjacency -- is what
+    # catches real-world phrasing variety without needing an exhaustive
+    # literal phrase list.
+    r"\bclearance\b.{0,20}\b(required|needed|necessary|mandatory)\b",
+    r"\b(required|needed|necessary|mandatory)\b.{0,20}\bclearance\b",
+    r"\brequir(e[sd]?|ing)\b.{0,40}\bclearance\b",
+    r"\bmust\s+(have|possess|hold|maintain)\b.{0,40}\bclearance\b",
+    r"\bneeds?\b.{0,40}\bclearance\b",
+]
+
+# Negated phrasing that should NOT be treated as a clearance requirement,
+# e.g. "no clearance needed", "clearance not required", "without a clearance".
+# Checked first; if any of these match, the positive patterns above are
+# skipped for this job (proximity matching is deliberately loose, so an
+# explicit negation guard is needed to avoid flipping the meaning).
+_CLEARANCE_NEGATION_PATTERNS = [
+    r"\bno\s+(active\s+)?(security\s+)?clearance\s*(is\s*)?(required|needed|necessary)?\b",
+    r"\bclearance\s+(is\s+)?not\s+(required|needed|necessary)\b",
+    r"\bwithout\s+(a\s+)?(security\s+)?clearance\b",
+    r"\bdoes\s*n[o']?t\s+require\b.{0,40}\bclearance\b",
+    r"\bclearance\s+not\s+(a\s+)?(requirement|required)\b",
 ]
 
 _PUBLIC_TRUST_PATTERNS = [
@@ -99,6 +122,18 @@ def _find_match(text: str, patterns: list[str]) -> str | None:
         if m:
             return m.group(0)
     return None
+
+
+_NEGATION_LOOKBEHIND = re.compile(r"\b(no|not|without|isn't|doesn't|does\s*n[o']?t|never)\s*$", re.IGNORECASE)
+
+
+def _preceded_by_negation(text: str, match_start: int, window: int = 20) -> bool:
+    """True if a negation word (no/not/without/doesn't/never) appears in the
+    `window` characters immediately before match_start. Used to stop plain
+    substring/keyword matching from flipping the meaning of phrases like
+    'No security clearance required' into a false skip."""
+    prefix = text[max(0, match_start - window):match_start]
+    return bool(_NEGATION_LOOKBEHIND.search(prefix))
 
 
 def evaluate_eligibility(
@@ -138,7 +173,8 @@ def evaluate_eligibility(
             )
 
     # 3. Security clearance
-    clearance_match = _find_match(text, _SECURITY_CLEARANCE_PATTERNS)
+    clearance_negated = _find_match(text, _CLEARANCE_NEGATION_PATTERNS)
+    clearance_match = None if clearance_negated else _find_match(text, _SECURITY_CLEARANCE_PATTERNS)
     if clearance_match and not candidate.has_security_clearance:
         return EligibilityResult(
             EligibilityStatus.SKIPPED,
@@ -207,7 +243,11 @@ def evaluate_eligibility(
     # would match the same text.
     text_lower = text.lower()
     for keyword in search_config.excluded_keywords:
-        if keyword.strip().lower() in text_lower:
+        keyword_clean = keyword.strip()
+        if not keyword_clean:
+            continue
+        match = re.search(re.escape(keyword_clean), text, re.IGNORECASE)
+        if match and not _preceded_by_negation(text, match.start()):
             return EligibilityResult(
                 EligibilityStatus.SKIPPED,
                 reason=f"Skipped because job contains excluded keyword: '{keyword}'.",
