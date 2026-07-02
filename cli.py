@@ -110,7 +110,7 @@ def cmd_check_job(args: argparse.Namespace) -> None:
 
 def cmd_list_jobs(args: argparse.Namespace) -> None:
     from db.session import get_session_factory
-    from db.models import Job
+    from db.models import Job, JobContact
 
     SessionFactory = get_session_factory()
     with SessionFactory() as session:
@@ -125,25 +125,27 @@ def cmd_list_jobs(args: argparse.Namespace) -> None:
 
         for job in jobs:
             print(f"[{job.id}] {job.status:15s} | {job.job_title} @ {job.company_name or '-'} | {job.location or '-'}")
-            if job.recruiter_email:
-                print(f"      recruiter: {job.recruiter_email}" + (f" ({job.recruiter_name})" if job.recruiter_name else ""))
+            if job.job_contact_id:
+                contact = session.get(JobContact, job.job_contact_id)
+                if contact:
+                    print(f"      recruiter: {contact.recruiter_email}" + (f" ({contact.recruiter_name})" if contact.recruiter_name else ""))
             if job.skip_reason:
                 print(f"      reason: {job.skip_reason}")
 
 
 def cmd_list_recruiters(args: argparse.Namespace) -> None:
     from db.session import get_session_factory
-    from db.models import Recruiter, JobContact
+    from db.models import JobContact, Job
 
     SessionFactory = get_session_factory()
     with SessionFactory() as session:
-        recruiters = session.query(Recruiter).order_by(Recruiter.updated_at.desc()).limit(args.limit).all()
-        if not recruiters:
+        contacts = session.query(JobContact).order_by(JobContact.updated_at.desc()).limit(args.limit).all()
+        if not contacts:
             print("No recruiters found.")
             return
-        for r in recruiters:
-            job_count = session.query(JobContact).filter_by(recruiter_id=r.id).count()
-            print(f"[{r.id}] {r.email:35s} | {r.name or '-':20s} | {r.company_name or '-':20s} | {job_count} job(s)")
+        for c in contacts:
+            job_count = session.query(Job).filter_by(job_contact_id=c.id).count()
+            print(f"{c.recruiter_email:35s} | {c.recruiter_name or '-':20s} | {c.recruiter_company or '-':20s} | {job_count} job(s)")
 
 
 def main() -> None:

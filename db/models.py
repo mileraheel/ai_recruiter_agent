@@ -56,8 +56,7 @@ class Job(Base):
     description_text: Mapped[str | None] = mapped_column(Text)
     authorization_text: Mapped[str | None] = mapped_column(Text)
     salary_or_rate: Mapped[str | None] = mapped_column(String)
-    recruiter_name: Mapped[str | None] = mapped_column(String)
-    recruiter_email: Mapped[str | None] = mapped_column(String)
+    job_contact_id: Mapped[int | None] = mapped_column(ForeignKey("job_contacts.id"))
     role_classification: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -68,28 +67,24 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-class Recruiter(Base):
-    __tablename__ = "recruiters"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str | None] = mapped_column(String)
-    email: Mapped[str | None] = mapped_column(String, unique=True)
-    linkedin_url: Mapped[str | None] = mapped_column(String)
-    company_name: Mapped[str | None] = mapped_column(String)
-    phone: Mapped[str | None] = mapped_column(String)
-    source_name: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
 class JobContact(Base):
+    """The recruiter/contact entity, deduplicated by email. A job posting
+    has exactly one recruiter (many-to-one: many jobs can point at the
+    same job_contacts row), not the other way around -- so the FK lives
+    on jobs.job_contact_id, and this table has no job_id. Re-encountering
+    the same recruiter_email on a new job reuses this row rather than
+    creating a new one."""
     __tablename__ = "job_contacts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
-    recruiter_id: Mapped[int] = mapped_column(ForeignKey("recruiters.id"))
-    role: Mapped[str | None] = mapped_column(String)  # primary | secondary
+    recruiter_email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    recruiter_name: Mapped[str | None] = mapped_column(String)
+    recruiter_company: Mapped[str | None] = mapped_column(String)
+    recruiter_phone: Mapped[str | None] = mapped_column(String)
+    recruiter_linkedin_url: Mapped[str | None] = mapped_column(String)
+    source_name: Mapped[str | None] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class ResumeVersion(Base):
@@ -113,7 +108,7 @@ class Email(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id"))
-    recruiter_id: Mapped[int | None] = mapped_column(ForeignKey("recruiters.id"))
+    job_contact_id: Mapped[int | None] = mapped_column(ForeignKey("job_contacts.id"))
     to_email: Mapped[str | None] = mapped_column(String)
     from_email: Mapped[str | None] = mapped_column(String)
     subject: Mapped[str | None] = mapped_column(String)

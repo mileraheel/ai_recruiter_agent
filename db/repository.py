@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from config.schema import CandidateConfig
 from core.eligibility import EligibilityResult, EligibilityStatus
-from db.models import Job, JobContact, JobSource, Recruiter
+from db.models import Job, JobContact, JobSource
 
 
 def _dedup_hash(job_title: str, company_name: str | None, location: str | None) -> str:
@@ -42,48 +42,43 @@ def get_or_create_source(session: Session, source_name: str, source_type: str = 
     return source
 
 
-def get_or_create_recruiter(
+def get_or_create_job_contact(
     session: Session,
-    email: str,
+    recruiter_email: str,
     *,
-    name: str | None = None,
-    company_name: str | None = None,
+    recruiter_name: str | None = None,
+    recruiter_company: str | None = None,
+    recruiter_phone: str | None = None,
+    recruiter_linkedin_url: str | None = None,
     source_name: str | None = None,
-) -> Recruiter:
-    """Email is the identity key for a recruiter -- the same person posts
-    many jobs across many boards, and applying against 'this recruiter'
-    rather than 'this one job' only works if their contact record is
-    shared, not duplicated per posting. New info (name/company) fills in
-    blanks on an existing record but doesn't overwrite what's already
-    there, since a later, sparser posting shouldn't erase a better name
-    or company captured earlier."""
-    email_normalized = email.strip().lower()
-    recruiter = session.query(Recruiter).filter_by(email=email_normalized).one_or_none()
-    if recruiter is None:
-        recruiter = Recruiter(
-            email=email_normalized,
-            name=name,
-            company_name=company_name,
+) -> JobContact:
+    """job_contacts is the deduplicated recruiter entity, keyed by email.
+    A job posting has exactly one recruiter (many jobs -> one recruiter),
+    so this returns the SAME row for the same email across multiple
+    calls -- callers link a job to it via job.job_contact_id, they don't
+    create a new job_contacts row per job. New info fills in blanks on an
+    existing record but doesn't overwrite what's already there, since a
+    later, sparser posting shouldn't erase a better name/phone/company
+    captured earlier."""
+    email_normalized = recruiter_email.strip().lower()
+    contact = session.query(JobContact).filter_by(recruiter_email=email_normalized).one_or_none()
+    if contact is None:
+        contact = JobContact(
+            recruiter_email=email_normalized,
+            recruiter_name=recruiter_name,
+            recruiter_company=recruiter_company,
+            recruiter_phone=recruiter_phone,
+            recruiter_linkedin_url=recruiter_linkedin_url,
             source_name=source_name,
         )
-        session.add(recruiter)
-        session.flush()
+        session.add(contact)
+        session.flush()  # get contact.id without a full commit
     else:
-        if name and not recruiter.name:
-            recruiter.name = name
-        if company_name and not recruiter.company_name:
-            recruiter.company_name = company_name
-    return recruiter
-
-
-def link_job_to_recruiter(session: Session, job: Job, recruiter: Recruiter, role: str = "primary") -> None:
-    existing = (
-        session.query(JobContact)
-        .filter_by(job_id=job.id, recruiter_id=recruiter.id)
-        .one_or_none()
-    )
-    if existing is None:
-        session.add(JobContact(job_id=job.id, recruiter_id=recruiter.id, role=role))
+        contact.recruiter_name = contact.recruiter_name or recruiter_name
+        contact.recruiter_company = contact.recruiter_company or recruiter_company
+        contact.recruiter_phone = contact.recruiter_phone or recruiter_phone
+        contact.recruiter_linkedin_url = contact.recruiter_linkedin_url or recruiter_linkedin_url
+    return contact
 
 
 def save_job_check(
@@ -101,10 +96,11 @@ def save_job_check(
     recruiter_name: str | None = None,
 ) -> Job:
     """Persists one job + its eligibility decision, and -- if a recruiter
-    email is provided -- the recruiter contact, linked via job_contacts.
-    Idempotent on (source, dedup_hash) for the job, and on email for the
-    recruiter: re-checking the same posting or hearing from the same
-    recruiter again updates existing rows rather than duplicating them."""
+    email is provided -- links the job to its (deduplicated) job_contacts
+    row via job.job_contact_id. Idempotent on (source, dedup_hash) for the
+    job, and on email for the recruiter: re-checking the same posting, or
+    hearing from the same recruiter again on a different job, updates
+    existing rows rather than duplicating them."""
     source = get_or_create_source(session, source_name)
     dedup_hash = _dedup_hash(job_title, company_name, location)
 
@@ -138,21 +134,15 @@ def save_job_check(
     job.last_checked_at = datetime.now(timezone.utc)
 
     if recruiter_email:
-        job.recruiter_name = recruiter_name
-        job.recruiter_email = recruiter_email.strip().lower()
+        contact = get_or_create_job_contact(
+            session,
+            recruiter_email,
+            recruiter_name=recruiter_name,
+            recruiter_company=company_name,
+            source_name=source_name,
+        )
+        job.job_contact_id = contact.id
 
     session.commit()
     session.refresh(job)
-
-    if recruiter_email:
-        recruiter = get_or_create_recruiter(
-            session,
-            recruiter_email,
-            name=recruiter_name,
-            company_name=company_name,
-            source_name=source_name,
-        )
-        link_job_to_recruiter(session, job, recruiter)
-        session.commit()
-
     return job
