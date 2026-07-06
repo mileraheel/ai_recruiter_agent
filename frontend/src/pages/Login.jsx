@@ -72,6 +72,11 @@ export default function Login() {
             Register your corporate
           </Link>
         </p>
+        <p className="text-center text-xs text-ink/30">
+          <Link to="/superuser/login" className="underline">
+            Platform admin sign in
+          </Link>
+        </p>
       </form>
     </div>
   );
