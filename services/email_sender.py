@@ -22,6 +22,10 @@ def _smtp_config() -> dict:
     username = os.environ.get("SMTP_USERNAME")
     password = os.environ.get("SMTP_PASSWORD")
     from_email = os.environ.get("SMTP_FROM_EMAIL")
+    # Optional -- purely cosmetic. Falls back to just the bare address
+    # (e.g. "you@gmail.com") if unset, same behavior as before this
+    # existed, so leaving it out never breaks sending.
+    from_name = os.environ.get("SMTP_FROM_NAME")
     missing = [
         name
         for name, val in [
@@ -37,19 +41,27 @@ def _smtp_config() -> dict:
             f"SMTP_PORT=587, SMTP_USERNAME=<address>, SMTP_PASSWORD=<app password, "
             f"not your real password>, SMTP_FROM_EMAIL=<address>."
         )
-    return {"host": host, "port": int(port), "username": username, "password": password, "from_email": from_email}
+    return {
+        "host": host, "port": int(port), "username": username, "password": password,
+        "from_email": from_email, "from_name": from_name,
+    }
 
 
 def send_email(to_email: str, subject: str, body_text: str) -> None:
     config = _smtp_config()
     msg = MIMEText(body_text, "plain")
     msg["Subject"] = subject
-    msg["From"] = config["from_email"]
+    msg["From"] = (
+        f'"{config["from_name"]}" <{config["from_email"]}>' if config["from_name"] else config["from_email"]
+    )
     msg["To"] = to_email
 
     with smtplib.SMTP(config["host"], config["port"]) as server:
         server.starttls()
         server.login(config["username"], config["password"])
+        # The envelope sender (SMTP MAIL FROM) stays the bare address --
+        # only the To-be-displayed "From" header gets the friendly name.
+        # Some providers reject a display-name-formatted envelope sender.
         server.sendmail(config["from_email"], [to_email], msg.as_string())
 
 
