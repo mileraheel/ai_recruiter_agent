@@ -30,6 +30,19 @@ class ApiError extends Error {
   }
 }
 
+// Endpoints where a 401 means "wrong credentials", not "your session
+// expired" -- there's no session yet at all when hitting these, so the
+// generic 401 handler below must not treat it as one. Redirecting here
+// wipes the login form (and its error state) out from under the user
+// via a full page navigation before they ever see why it failed.
+const AUTH_ENDPOINTS = new Set([
+  "/auth/login",
+  "/auth/signup",
+  "/superuser-auth/login",
+  "/candidate-auth/login",
+  "/candidate-auth/signup",
+]);
+
 async function request(path, { method = "GET", body, form } = {}) {
   const headers = {};
   const token = getToken();
@@ -46,7 +59,7 @@ async function request(path, { method = "GET", body, form } = {}) {
 
   const res = await fetch(`/api${path}`, { method, headers, body: payload });
 
-  if (res.status === 401) {
+  if (res.status === 401 && !AUTH_ENDPOINTS.has(path)) {
     const role = getRole();
     clearToken();
     window.location.href = role === "candidate" ? "/candidate/login" : "/login";

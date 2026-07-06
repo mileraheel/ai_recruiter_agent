@@ -68,4 +68,42 @@ describe("api client", () => {
     await expect(api.listCandidates()).rejects.toThrow();
     expect(window.location.href).toBe("/login");
   });
+
+  it("does NOT redirect on a 401 from the login endpoint itself (wrong credentials, not an expired session)", async () => {
+    const { api } = await import("../api/client.js");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: "Invalid username or password" }),
+    });
+
+    delete window.location;
+    window.location = { href: "" };
+
+    await expect(api.login("wrong", "wrong")).rejects.toMatchObject({
+      status: 401,
+      detail: "Invalid username or password",
+    });
+    // The bug: this used to be set to "/login" even though the user was
+    // already on the login page, wiping the form via a full reload
+    // before the error banner could ever render.
+    expect(window.location.href).toBe("");
+  });
+
+  it("does NOT redirect on a 401 from the superuser login endpoint", async () => {
+    const { api } = await import("../api/client.js");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: "Invalid username or password" }),
+    });
+
+    delete window.location;
+    window.location = { href: "" };
+
+    await expect(api.superuserLogin("raheel", "wrong")).rejects.toMatchObject({ status: 401 });
+    expect(window.location.href).toBe("");
+  });
 });
