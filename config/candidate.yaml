@@ -1,118 +1,17 @@
-candidate:
-  full_name: "Raheel Ahmed Khan"
-  email: "${CANDIDATE_EMAIL}"
-  phone: "${CANDIDATE_PHONE}"
-  location: "Reston, VA"
-  linkedin_url: ""
-  base_resume_path: "resumes/master_resume.docx"
-  work_authorization: "H1B"
-  requires_sponsorship_or_transfer: true
-  c2c_allowed: true
-  w2_allowed: false
-  contract_allowed: true
-  contract_to_hire_allowed: true
-  full_time_allowed: false
-  has_security_clearance: false
-  public_trust_available: false
-  willing_to_work_remote: true
-  willing_to_work_hybrid: true
-  willing_to_work_onsite: false
-search:
-  keywords:
-    - "Senior Java Developer"
-    - "Lead Java Developer"
-    - "Java Technical Lead"
-    - "Principal Java Engineer"
-    - "Java Architect"
-    - "Solution Architect Java"
-    - "Spring Boot Developer"
-    - "Backend Java Developer"
-    - "Java Microservices Developer"
-    - "Java Angular Developer"
-    - "Full Stack Java Angular Developer"
-    - "Production Support Java"
-    - "L3 Java Support"
-    - "AI Solution Architect"
-    - "Agentic AI Engineer"
-    - "RAG Engineer"
-    - "LangChain Developer"
-  required_keywords:
-    - "Java"
-  nice_to_have_keywords:
-    - "Spring Boot"
-    - "Java 17"
-    - "Java 21"
-    - "Microservices"
-    - "Kafka"
-    - "REST"
-    - "GraphQL"
-    - "AWS"
-    - "Azure"
-    - "Kubernetes"
-    - "OpenShift"
-    - "Docker"
-    - "CI/CD"
-    - "Jenkins"
-    - "GitLab"
-    - "SQL Server"
-    - "MongoDB"
-    - "Angular"
-    - "TypeScript"
-    - "JUnit"
-    - "Splunk"
-    - "Production Support"
-    - "RCA"
-    - "L2 Support"
-    - "L3 Support"
-    - "Python"
-    - "RAG"
-    - "LangChain"
-    - "LangGraph"
-    - "Vector Search"
-    - "Agentic AI"
-  excluded_keywords:
-    - "US Citizen only"
-    - "US citizenship required"
-    - "Green Card only"
-    - "GC only"
-    - "USC/GC only"
-    - "No sponsorship"
-    - "Unable to sponsor"
-    - "Cannot sponsor"
-    - "Sponsorship not available"
-    - "No visa sponsorship"
-    - "No H1B"
-    - "H1B not accepted"
-    - "W2 only"
-    - "Only W2"
-    - "No C2C"
-    - "C2C not accepted"
-    - "No third party"
-    - "No third-party candidates"
-    - "No vendors"
-    - "No employer layers"
-    - "Direct candidates only"
-    - "Security clearance required"
-    - "Secret clearance"
-    - "Top Secret clearance"
-  locations:
-    - "Remote"
-    - "New Jersey"
-    - "New York"
-    - "Jersey City, NJ"
-    - "Virginia"
-    - "Reston, VA"
-    - "Washington DC"
-    - "Maryland"
-    - "Texas"
-    - "Chicago, IL"
-  work_mode:
-    - "remote"
-    - "hybrid"
-  employment_type:
-    - "contract"
-    - "contract-to-hire"
-    - "C2C"
+version: 1
+
+# Per-candidate data (identity, search keywords, application policy)
+# now lives entirely in the database -- created via admin/candidate
+# signup and invite flows, configured via the admin API. This file is
+# retired for that purpose; only genuine system-wide operating policy
+# remains here.
+#
+# (Historical note: this file used to contain a `candidates:` list.
+# Existing YAML-managed candidates need to be recreated through the
+# app's signup/invite flow -- there is no automatic migration, since
+# the new model requires an Organization + admin-approved profile +
+# operational config that a YAML entry never had.)
+
 sources:
   linkedin_jobs:
     enabled: true
@@ -132,6 +31,7 @@ sources:
   generic_c2c:
     enabled: true
     mode: "configurable_source_adapter"
+
 limits:
   max_jobs_per_day: 50
   max_emails_per_day: 20
@@ -141,6 +41,7 @@ limits:
   dry_run_mode: true
   require_human_approval_before_send: true
   require_human_approval_before_apply: true
+
 follow_up:
   first_follow_up_after_days: 2
   follow_up_every_days: 2
@@ -148,6 +49,7 @@ follow_up:
   stop_follow_up_on_reply: true
   stop_follow_up_on_rejection: true
   stop_follow_up_if_recruiter_says_no: true
+
 resume_refresh:
   enabled: true
   frequency: "weekly"
@@ -157,8 +59,3 @@ resume_refresh:
     - "techfetch"
     - "generic_c2c"
   rule: "Refresh or re-upload resume only where the platform allows normal resume replacement. Do not bypass restrictions. Pause for human approval if manual upload is required."
-email:
-  provider: "gmail_or_microsoft_graph"
-  from_email: "${SENDER_EMAIL}"
-  send_mode: "draft_first"
-  signature_enabled: true

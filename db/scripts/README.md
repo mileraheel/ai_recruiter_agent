@@ -1,8 +1,44 @@
-# Database Recovery & Backup
+# Database Setup, Backup & Recovery
 
-There are two different kinds of "lost the database," and they need different fixes.
+## Setting up from zero (fresh clone, fresh database)
 
-## 1. Lost the schema (tables gone, container deleted, fresh machine)
+Full sequence to go from "empty Postgres database" to "app is usable":
+
+```bash
+# 1. Create every table from db/models.py
+python -m db.session
+
+# 2. Seed reference data (job_sources) from config/candidate.yaml
+python -m db.seed
+
+# 3. Create the platform-level superuser account (you)
+python -m api.bootstrap_superuser --username your_username
+
+# 4. (Optional) Create a staff account -- staff onboard organizations
+#    and their first admin via the app itself (POST /api/staff/invite-organization),
+#    so this is only needed if you want a staff account beyond the superuser.
+python -m api.bootstrap_staff --username staff_username
+
+# 5. Admin accounts are NOT created via CLI -- create your first
+#    organization + admin through the app itself:
+#      POST /api/auth/signup (self-service, creates a new org), or
+#      have a staff member invite one via POST /api/staff/invite-organization
+```
+
+There is no CLI path for candidates -- they're created via self-signup
+(`POST /api/candidate-auth/signup`, joining an existing org by exact
+name) or an admin inviting them (`POST /api/candidates/invite`).
+
+`db/scripts/schema.sql` is a generated, human-readable snapshot of the
+full schema (all tables, as raw PostgreSQL DDL) -- useful for review or
+handing to a DBA, but it is NOT what the app actually runs to create
+tables (that's `db/session.py::init_db()` via SQLAlchemy's
+`create_all()`, above). Regenerate it after any model change:
+```bash
+python -m db.scripts.generate_schema_sql
+```
+
+## Recovering the schema after data loss
 
 This is what `db/models.py` + `db/session.py` solve — the schema is defined in code,
 so it's never actually "lost" as long as this repo exists.

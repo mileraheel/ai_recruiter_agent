@@ -37,8 +37,37 @@ from core.extraction import (
 from core.signature import generate_signature
 
 
+def _resolve_candidate_profile(cfg, candidate_id: str | None):
+    """Picks one CandidateProfile out of cfg.candidates. Required once
+    there's more than one candidate in config; auto-selected when there's
+    only one, so single-candidate setups don't need --candidate on every
+    command."""
+    if candidate_id:
+        for profile in cfg.candidates:
+            if profile.resolved_id() == candidate_id:
+                return profile
+        available = [p.resolved_id() for p in cfg.candidates]
+        raise SystemExit(f"No candidate with id '{candidate_id}'. Available: {available}")
+
+    if len(cfg.candidates) == 1:
+        return cfg.candidates[0]
+
+    available = [p.resolved_id() for p in cfg.candidates]
+    raise SystemExit(
+        f"Multiple candidates configured -- pass --candidate <id>. Available: {available}"
+    )
+
+
+def cmd_list_candidates(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    for profile in cfg.candidates:
+        policy = "strict-match-only" if profile.application_policy.strict_skill_match_required else "apply-broadly"
+        print(f"{profile.resolved_id():25s} | {profile.candidate.full_name:25s} | {policy} | required_keywords={profile.search.required_keywords}")
+
+
 def cmd_check_job(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
+    profile = _resolve_candidate_profile(cfg, args.candidate)
     text = Path(args.file).read_text(encoding="utf-8")
 
     # Everything below is auto-extracted from the job text by default.
@@ -52,6 +81,7 @@ def cmd_check_job(args: argparse.Namespace) -> None:
     recruiter_name = args.recruiter_name or extract_recruiter_name(text, recruiter_email)
     company_name = args.company or extract_company_name(text, recruiter_email)
 
+    print(f"Candidate: {profile.candidate.full_name} ({profile.resolved_id()})")
     print(f"Job title: {job_title}")
     if location:
         print(f"Location: {location}")
@@ -67,10 +97,11 @@ def cmd_check_job(args: argparse.Namespace) -> None:
 
     result = evaluate_eligibility(
         job_description_text=text,
-        candidate=cfg.candidate,
-        search_config=cfg.search,
+        candidate=profile.candidate,
+        search_config=profile.search,
         job_location=location,
         job_work_mode=work_mode,
+        strict_skill_match_required=profile.application_policy.strict_skill_match_required,
     )
 
     print(f"Status: {result.status.value}")
@@ -98,6 +129,8 @@ def cmd_check_job(args: argparse.Namespace) -> None:
                 job_title=job_title,
                 description_text=text,
                 eligibility_result=result,
+                candidate_slug=profile.resolved_id(),
+                candidate_full_name=profile.candidate.full_name,
                 company_name=company_name,
                 location=location,
                 work_mode=work_mode,
@@ -153,12 +186,13 @@ def cmd_generate_signature(args: argparse.Namespace) -> None:
     from pathlib import Path as _Path
 
     cfg = load_config(args.config)
-    signature_text = generate_signature(cfg.candidate)
+    profile = _resolve_candidate_profile(cfg, args.candidate)
+    signature_text = generate_signature(profile.candidate)
 
     out_dir = _Path(args.output_dir)
     out_dir.mkdir(exist_ok=True)
     stem = _Path(args.file).stem
-    out_path = out_dir / f"{stem}_signature.txt"
+    out_path = out_dir / f"{profile.resolved_id()}_{stem}_signature.txt"
     out_path.write_text(signature_text, encoding="utf-8")
 
     print(signature_text)
@@ -172,6 +206,7 @@ def main() -> None:
     check_job = sub.add_parser("check-job", help="Run the eligibility filter on a job description file")
     check_job.add_argument("file", help="Path to a .txt file containing the job description")
     check_job.add_argument("--config", default="config/candidate.yaml")
+    check_job.add_argument("--candidate", default=None, help="Candidate id to check against (required if config has multiple candidates)")
     check_job.add_argument("--location", default=None, help="Override auto-detected location (rarely needed)")
     check_job.add_argument("--work-mode", default=None, choices=["remote", "hybrid", "onsite"], help="Override auto-detected work mode (rarely needed)")
     check_job.add_argument("--title", default=None, help="Override auto-detected job title (rarely needed)")
@@ -190,9 +225,14 @@ def main() -> None:
     list_recruiters.add_argument("--limit", type=int, default=20)
     list_recruiters.set_defaults(func=cmd_list_recruiters)
 
+    list_candidates = sub.add_parser("list-candidates", help="List candidates configured in candidate.yaml")
+    list_candidates.add_argument("--config", default="config/candidate.yaml")
+    list_candidates.set_defaults(func=cmd_list_candidates)
+
     generate_signature_parser = sub.add_parser("generate-signature", help="Generate an email signature for a job (temporary folder-based storage for testing)")
     generate_signature_parser.add_argument("file", help="Job file this signature is paired with (used only for output naming)")
     generate_signature_parser.add_argument("--config", default="config/candidate.yaml")
+    generate_signature_parser.add_argument("--candidate", default=None, help="Candidate id to generate for (required if config has multiple candidates)")
     generate_signature_parser.add_argument("--output-dir", default="generated")
     generate_signature_parser.set_defaults(func=cmd_generate_signature)
 

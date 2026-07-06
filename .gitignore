@@ -6,3 +6,5 @@ resumes/master_resume.docx
 .idea/
 generated/
 backups/
+node_modules/
+frontend/dist/

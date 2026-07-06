@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from config.schema import CandidateConfig, SearchConfig
+from core.role_match import evaluate_skill_match
 
 
 class EligibilityStatus(str, Enum):
@@ -151,8 +152,23 @@ def evaluate_eligibility(
     search_config: SearchConfig,
     job_location: str | None = None,
     job_work_mode: str | None = None,  # "remote" | "hybrid" | "onsite" | None
+    strict_skill_match_required: bool = True,
 ) -> EligibilityResult:
     text = job_description_text or ""
+
+    # 0. Core role/skill match -- runs first, and separately from the
+    # compliance checks below. This is what stops a candidate's resume
+    # from ever reaching the tailoring step for a job outside their
+    # actual tech stack (e.g. a Java candidate matched to a .NET-only
+    # posting). See core/role_match.py for the full rationale; disabled
+    # per-candidate via application_policy.strict_skill_match_required.
+    skill_match = evaluate_skill_match(text, search_config, strict_skill_match_required)
+    if not skill_match.matched:
+        return EligibilityResult(
+            EligibilityStatus.SKIPPED,
+            reason=skill_match.reason,
+            matched_signals=skill_match.missing_required_keywords,
+        )
 
     # 1. Sponsorship / citizenship requirements
     if candidate.requires_sponsorship_or_transfer:

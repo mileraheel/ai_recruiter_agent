@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from config.schema import CandidateConfig
 from core.eligibility import EligibilityResult, EligibilityStatus
-from db.models import Job, JobContact, JobSource
+from db.models import Job, JobContact, JobSource, Candidate
 
 
 def _dedup_hash(job_title: str, company_name: str | None, location: str | None) -> str:
@@ -81,12 +81,31 @@ def get_or_create_job_contact(
     return contact
 
 
+def get_or_create_candidate(session: Session, organization_id: int, slug: str, full_name: str) -> Candidate:
+    """Same idempotent pattern as get_or_create_source/job_contact.
+    Normally db/seed.py has already created this row from config, but
+    save_job_check falls back to creating it here too so a candidate
+    added to config without re-running seed.py doesn't silently fail.
+    Scoped by organization_id -- slug alone is not unique across orgs."""
+    candidate_row = (
+        session.query(Candidate).filter_by(organization_id=organization_id, slug=slug).one_or_none()
+    )
+    if candidate_row is None:
+        candidate_row = Candidate(organization_id=organization_id, slug=slug, full_name=full_name)
+        session.add(candidate_row)
+        session.flush()
+    return candidate_row
+
+
 def save_job_check(
     session: Session,
     *,
     job_title: str,
     description_text: str,
     eligibility_result: EligibilityResult,
+    organization_id: int | None = None,
+    candidate_slug: str | None = None,
+    candidate_full_name: str | None = None,
     source_name: str = "manual_cli",
     company_name: str | None = None,
     location: str | None = None,
@@ -97,16 +116,27 @@ def save_job_check(
 ) -> Job:
     """Persists one job + its eligibility decision, and -- if a recruiter
     email is provided -- links the job to its (deduplicated) job_contacts
-    row via job.job_contact_id. Idempotent on (source, dedup_hash) for the
-    job, and on email for the recruiter: re-checking the same posting, or
-    hearing from the same recruiter again on a different job, updates
-    existing rows rather than duplicating them."""
+    row via job.job_contact_id. Idempotent on (candidate, source,
+    dedup_hash) for the job, and on email for the recruiter: re-checking
+    the same posting for the same candidate, or hearing from the same
+    recruiter again on a different job, updates existing rows rather than
+    duplicating them. Scoped per candidate now -- the same posting
+    checked for two different candidates produces two separate Job rows,
+    since eligibility/status can differ per candidate."""
     source = get_or_create_source(session, source_name)
     dedup_hash = _dedup_hash(job_title, company_name, location)
 
+    candidate_row = None
+    if candidate_slug and organization_id is not None:
+        candidate_row = get_or_create_candidate(session, organization_id, candidate_slug, candidate_full_name or candidate_slug)
+
     existing = (
         session.query(Job)
-        .filter_by(source_id=source.id, dedup_hash=dedup_hash)
+        .filter_by(
+            source_id=source.id,
+            dedup_hash=dedup_hash,
+            candidate_id=candidate_row.id if candidate_row else None,
+        )
         .one_or_none()
     )
 
@@ -119,7 +149,13 @@ def save_job_check(
     if existing is not None:
         job = existing
     else:
-        job = Job(source_id=source.id, source_name=source_name, dedup_hash=dedup_hash)
+        job = Job(
+            organization_id=organization_id,
+            source_id=source.id,
+            source_name=source_name,
+            dedup_hash=dedup_hash,
+            candidate_id=candidate_row.id if candidate_row else None,
+        )
         session.add(job)
 
     job.job_title = job_title

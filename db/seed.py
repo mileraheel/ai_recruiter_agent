@@ -4,10 +4,11 @@ Seeds baseline reference data into a freshly-created (empty) database.
 This does NOT restore your accumulated jobs/recruiters/decisions -- that's
 what backups are for (see db/scripts/README.md). What this DOES restore is
 the job_sources rows matching your current candidate.yaml, so a fresh
-schema isn't a completely blank slate: the sources you've configured
-(dice, monster, linkedin_jobs, etc.) already exist as rows with the right
-enabled/mode values, instead of getting silently created ad hoc the first
-time each adapter runs.
+schema isn't a completely blank slate.
+
+Candidate seeding from YAML is retired -- candidates are created via
+the app's signup/invite flow now (see config/candidate.yaml's header
+comment), not this script.
 
 Usage:
     python -m db.seed
@@ -52,8 +53,8 @@ def main() -> None:
     cfg = load_config(args.config)
     SessionFactory = get_session_factory()
     with SessionFactory() as session:
-        seeded = seed_sources_from_config(session, cfg)
-    print(f"Seeded/updated {len(seeded)} job_sources rows: {seeded}")
+        seeded_sources = seed_sources_from_config(session, cfg)
+    print(f"Seeded/updated {len(seeded_sources)} job_sources rows: {seeded_sources}")
 
 
 if __name__ == "__main__":

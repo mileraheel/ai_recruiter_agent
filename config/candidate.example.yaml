@@ -1,85 +1,23 @@
 version: 1
 
-candidate:
-  full_name: "Raheel Ahmed Khan"
-  email: "${CANDIDATE_EMAIL}"
-  phone: "${CANDIDATE_PHONE}"
-  location: "Sudley, VA"
-  linkedin_url: "https://www.linkedin.com/in/example"
-  base_resume_path: "resumes/master_resume.docx"
-  work_authorization: "H1B"
-  requires_sponsorship_or_transfer: true
-  c2c_allowed: true
-  w2_allowed: false
-  contract_allowed: true
-  contract_to_hire_allowed: true
-  full_time_allowed: false
-  has_security_clearance: false
-  public_trust_available: false
-  willing_to_work_remote: true
-  willing_to_work_hybrid: true
-  willing_to_work_onsite: false
-
-search:
-  keywords:
-    - "Senior Java Developer"
-    - "Java Technical Lead"
-    - "Principal Java Engineer"
-    - "Java Architect"
-    - "Spring Boot Developer"
-    - "Java Angular Developer"
-    - "AI Solution Architect"
-    - "Agentic AI"
-    - "RAG"
-  required_keywords:
-    - "Java"
-    - "Spring Boot"
-  nice_to_have_keywords:
-    - "Kafka"
-    - "AWS"
-    - "Azure"
-    - "Kubernetes"
-    - "OpenShift"
-    - "Angular"
-    - "LangChain"
-    - "LangGraph"
-    - "RAG"
-    - "Microservices"
-  excluded_keywords:
-    - "US Citizen only"
-    - "Green Card only"
-    - "USC/GC only"
-    - "No sponsorship"
-    - "Unable to sponsor"
-    - "No H1B"
-    - "H1B not accepted"
-    - "W2 only"
-    - "No C2C"
-    - "No third party"
-    - "No vendors"
-    - "Clearance required"
-  locations:
-    - "Remote"
-    - "New Jersey"
-    - "New York"
-    - "Virginia"
-    - "Maryland"
-    - "Washington DC"
-    - "Texas"
-    - "Chicago"
-  work_mode:
-    - "remote"
-    - "hybrid"
-  employment_type:
-    - "contract"
-    - "contract-to-hire"
-    - "C2C"
+# Candidate onboarding now happens through the app itself, not this
+# file:
+#   1. An admin signs up (POST /api/auth/signup) or is invited by staff
+#      -- this creates an Organization.
+#   2. The admin invites candidates (or candidates self-signup by
+#      typing the exact organization name) -- this creates Candidate
+#      rows.
+#   3. A candidate fills out their profile + uploads a resume; an admin
+#      approves it.
+#   4. An admin sets each candidate's search config (keywords,
+#      locations, strict_skill_match_required) via the candidate-config
+#      API -- this is what used to be the `search:`/`application_policy:`
+#      blocks here.
+#
+# This file now only holds genuine system-wide operating policy.
 
 sources:
   linkedin_jobs:
-    enabled: true
-    mode: "human_in_loop"
-  linkedin_posts:
     enabled: true
     mode: "human_in_loop"
   dice:
@@ -126,9 +64,3 @@ resume_refresh:
     - "Monster"
     - "TechFetch"
   rule: "Refresh or re-upload resume only where the platform allows normal resume replacement. Do not bypass restrictions. Pause for human approval if manual upload is required."
-
-email:
-  provider: "gmail_or_microsoft_graph"
-  from_email: "${SENDER_EMAIL}"
-  send_mode: "draft_first"
-  signature_enabled: true

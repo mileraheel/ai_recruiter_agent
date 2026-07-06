@@ -110,10 +110,12 @@ _EMOJI_PATTERN = re.compile(
 def extract_job_title(text: str) -> str | None:
     """Looks for an explicit 'Hiring:' / 'Job Title:' / 'Position:' /
     'Role:' line first. Falls back to the first non-empty line of the
-    text (stripped of emoji/decoration), since most postings lead with
-    the title even without an explicit label. Returns None only if the
-    text is empty -- an imperfect title guess is still more useful here
-    than forcing a manual --title every time."""
+    text that isn't just an email address (since real recruiter
+    messages often lead with contact info -- name/email -- before the
+    actual posting), stripped of emoji/decoration. Returns None if no
+    such line exists -- a wrong title guess sent out in a real email is
+    worse than no title, same principle as extract_recruiter_name's
+    conservative fallback."""
     for pattern in _TITLE_LINE_PATTERNS:
         m = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if m:
@@ -123,8 +125,11 @@ def extract_job_title(text: str) -> str | None:
 
     for line in text.splitlines():
         stripped = _EMOJI_PATTERN.sub("", line).strip()
-        if stripped:
-            return stripped
+        if not stripped:
+            continue
+        if _EMAIL_PATTERN.fullmatch(stripped):
+            continue  # a bare email address is contact info, not a title
+        return stripped
     return None
 
 
