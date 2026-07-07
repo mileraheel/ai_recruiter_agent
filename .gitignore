@@ -8,3 +8,4 @@ generated/
 backups/
 node_modules/
 frontend/dist/
+logs/

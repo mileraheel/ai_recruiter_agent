@@ -14,14 +14,17 @@ watcher logic itself.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
+import time
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from api.routers import (
     auth, candidates, approval_queue, jobs, resumes,
@@ -33,7 +36,11 @@ from api.routers import (
 )
 from db.session import get_session_factory
 from services.file_watcher import run_watch_cycle
+from services.logging_config import configure_logging
 from services.storage import get_storage
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Recruiter Agent API", version="0.1.0")
 
@@ -45,6 +52,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """One line per request in logs/app.log -- method, path, status,
+    duration. This is the durable request log uvicorn's own console
+    output never was (it disappears when the terminal closes)."""
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = (time.monotonic() - start) * 1000
+    logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({duration_ms:.0f}ms)")
+    return response
+
+
+@app.exception_handler(Exception)
+async def log_unhandled_exceptions(request: Request, exc: Exception):
+    """Anything that reaches here is a genuine bug (expected errors use
+    HTTPException, which FastAPI/Starlette already handles separately
+    and never reaches this handler) -- log the full traceback with
+    request context so it's actually findable later, instead of only
+    flashing past in whatever terminal happened to be open."""
+    logger.exception(f"Unhandled exception on {request.method} {request.url.path}")
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 app.include_router(auth.router)
 app.include_router(candidates.router)
@@ -83,8 +113,8 @@ async def _background_watch_loop() -> None:
         try:
             with SessionFactory() as session:
                 run_watch_cycle(session, storage)
-        except Exception as e:  # noqa: BLE001 -- the loop must survive one bad cycle
-            print(f"[watch loop] error: {e}")
+        except Exception:  # noqa: BLE001 -- the loop must survive one bad cycle
+            logger.exception("Watch loop cycle failed")
         await asyncio.sleep(interval)
 
 
