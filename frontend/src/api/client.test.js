@@ -106,4 +106,160 @@ describe("api client", () => {
     await expect(api.superuserLogin("raheel", "wrong")).rejects.toMatchObject({ status: 401 });
     expect(window.location.href).toBe("");
   });
+
+  it("does NOT redirect on a 401 from the staff login endpoint either", async () => {
+    const { api } = await import("../api/client.js");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: "Incorrect username or password" }),
+    });
+
+    delete window.location;
+    window.location = { href: "" };
+
+    await expect(api.staffLogin("staffer", "wrong")).rejects.toMatchObject({ status: 401 });
+    expect(window.location.href).toBe("");
+  });
+
+  it("inviteCandidate posts to /api/candidates/invite with the email", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ invited_email: "c@example.com" }),
+    });
+
+    const result = await api.inviteCandidate("c@example.com");
+    expect(result).toEqual({ invited_email: "c@example.com" });
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain("/api/candidates/invite");
+    expect(JSON.parse(options.body)).toEqual({ email: "c@example.com" });
+  });
+
+  it("inviteOrganization posts organization_name/admin_email/account_type", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ organization_id: 1, organization_name: "Acme", invited_email: "a@acme.com" }),
+    });
+
+    await api.inviteOrganization({
+      organization_name: "Acme",
+      admin_email: "a@acme.com",
+      account_type: "agency",
+    });
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain("/api/staff/invite-organization");
+    expect(JSON.parse(options.body)).toEqual({
+      organization_name: "Acme",
+      admin_email: "a@acme.com",
+      account_type: "agency",
+    });
+  });
+
+  it("createStaff posts username/password to /api/superuser/staff", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 1, username: "staffer", is_active: true }),
+    });
+
+    await api.createStaff("staffer", "supersecretpw");
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain("/api/superuser/staff");
+    expect(JSON.parse(options.body)).toEqual({ username: "staffer", password: "supersecretpw" });
+  });
+
+  it("createOrganization posts to /api/superuser/organizations with trial_days", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ organization_id: 1, organization_name: "Acme", invited_email: "a@acme.com", trial_expires_at: "2026-07-21" }),
+    });
+
+    await api.createOrganization({
+      organization_name: "Acme",
+      admin_email: "a@acme.com",
+      account_type: "individual",
+      trial_days: 14,
+    });
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain("/api/superuser/organizations");
+    expect(JSON.parse(options.body)).toEqual({
+      organization_name: "Acme",
+      admin_email: "a@acme.com",
+      account_type: "individual",
+      trial_days: 14,
+    });
+  });
+
+  it("runTrialReminders posts to /api/superuser/trial-reminders/run", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ organizations_reminded: 1, organizations_failed: 0, candidates_reminded: 0, candidates_failed: 0 }),
+    });
+
+    const result = await api.runTrialReminders();
+    expect(result.organizations_reminded).toBe(1);
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toContain("/api/superuser/trial-reminders/run");
+    expect(options.method).toBe("POST");
+  });
+
+  it("getMySubscription fetches /api/me/subscription", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "active", trial_days_remaining: 3, trial_expires_at: "2026-07-10" }),
+    });
+
+    const result = await api.getMySubscription();
+    expect(result.trial_days_remaining).toBe(3);
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/me/subscription");
+  });
+
+  it("listMyApplications fetches /api/me/applications and returns items array", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [{ email_id: 1 }], total: 1, limit: 100, offset: 0 }),
+    });
+
+    const result = await api.listMyApplications();
+    expect(result).toEqual([{ email_id: 1 }]);
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/me/applications");
+  });
+
+  it("listMyUpcomingInterviews fetches /api/me/interviews/upcoming", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [] });
+
+    await api.listMyUpcomingInterviews();
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/me/interviews/upcoming");
+  });
 });

@@ -278,6 +278,9 @@ class OrganizationSummary(BaseModel):
     applications_sent: int
     interviews_scheduled: int
     created_at: datetime
+    sales_person: str | None = None  # staff username, or "superuser: <username>" if onboarded directly
+    trial_expires_at: date | None = None
+    trial_days_remaining: int | None = None
 
 
 class PlatformSummary(BaseModel):

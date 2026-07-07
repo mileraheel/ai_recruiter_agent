@@ -41,6 +41,7 @@ const AUTH_ENDPOINTS = new Set([
   "/superuser-auth/login",
   "/candidate-auth/login",
   "/candidate-auth/signup",
+  "/staff-auth/login",
 ]);
 
 async function request(path, { method = "GET", body, form } = {}) {
@@ -116,6 +117,15 @@ export const api = {
     request("/candidate-auth/login", { method: "POST", body: { login_email, password } }),
   getMe: () => request("/me"),
   submitMyProfile: (payload) => request("/me/profile", { method: "PUT", body: payload }),
+  getMySubscription: () => request("/me/subscription"),
+  pauseMySubscription: () => request("/me/subscription/pause", { method: "POST" }),
+  resumeMySubscription: () => request("/me/subscription/resume", { method: "POST" }),
+  listMyApplications: (params = {}) => {
+    const qs = new URLSearchParams({ limit: "100", ...params }).toString();
+    return request(`/me/applications${qs ? `?${qs}` : ""}`).then((r) => r.items);
+  },
+  getMyApplication: (emailId) => request(`/me/applications/${emailId}`),
+  listMyUpcomingInterviews: () => request("/me/interviews/upcoming"),
   uploadMyResume: async (file) => {
     const form = new FormData();
     form.append("file", file);
@@ -169,6 +179,25 @@ export const api = {
   updateInterview: (interviewId, payload) =>
     request(`/reports/interviews/${interviewId}`, { method: "PATCH", body: payload }),
   getReportsSummary: () => request("/reports/summary"),
+
+  // Candidate invites (admin inviting a candidate into their own org)
+  inviteCandidate: (email) => request("/candidates/invite", { method: "POST", body: { email } }),
+
+  // Staff auth + org onboarding
+  staffLogin: (username, password) =>
+    request("/staff-auth/login", { method: "POST", form: { username, password } }),
+  inviteOrganization: (payload) => request("/staff/invite-organization", { method: "POST", body: payload }),
+  listMyOrganizations: () => request("/staff/organizations"),
+  deactivateOrganization: (organizationId) =>
+    request(`/staff/organizations/${organizationId}`, { method: "DELETE" }),
+
+  // Superuser creates staff accounts
+  createStaff: (username, password) => request("/superuser/staff", { method: "POST", body: { username, password } }),
+  getStaffPerformance: () => request("/superuser/staff/performance"),
+
+  // Superuser onboards an organization (or standalone individual/candidate) directly
+  createOrganization: (payload) => request("/superuser/organizations", { method: "POST", body: payload }),
+  runTrialReminders: () => request("/superuser/trial-reminders/run", { method: "POST" }),
 
   // Superuser
   superuserLogin: (username, password) =>

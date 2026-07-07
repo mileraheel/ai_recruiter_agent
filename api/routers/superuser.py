@@ -16,7 +16,10 @@ from api.auth import authenticate_superuser, create_access_token, hash_password
 from api.deps import get_current_superuser, get_db
 from api.schemas import OrganizationSummary, PlatformSummary, TokenResponse
 from db.models import AdminUser, Candidate, Email, Interview, Job, Organization, Staff, SuperUser
+from services.email_sender import send_invite_email
+from services.invite_service import create_invite
 from services.rate_limit import check_not_locked, record_failure, record_success
+from services.trial_service import DEFAULT_TRIAL_DAYS, days_remaining, set_organization_trial
 
 router = APIRouter(tags=["superuser"])
 
@@ -68,6 +71,14 @@ def platform_summary(db: Session = Depends(get_db)):
             .count()
         )
 
+        sales_person = None
+        if org.created_by_staff_id:
+            staff_row = db.query(Staff).filter_by(id=org.created_by_staff_id).one_or_none()
+            sales_person = staff_row.username if staff_row else None
+        elif org.created_by_superuser_id:
+            su_row = db.query(SuperUser).filter_by(id=org.created_by_superuser_id).one_or_none()
+            sales_person = f"superuser: {su_row.username}" if su_row else None
+
         org_summaries.append(
             OrganizationSummary(
                 organization_id=org.id,
@@ -78,6 +89,9 @@ def platform_summary(db: Session = Depends(get_db)):
                 applications_sent=applications_sent,
                 interviews_scheduled=interviews_scheduled,
                 created_at=org.created_at,
+                sales_person=sales_person,
+                trial_expires_at=org.trial_expires_at,
+                trial_days_remaining=days_remaining(org.trial_expires_at),
             )
         )
         total_candidates += candidate_count
@@ -164,3 +178,87 @@ def staff_performance(db: Session = Depends(get_db)):
             )
         )
     return results
+
+
+class CreateOrganizationRequest(BaseModel):
+    organization_name: str
+    admin_email: str
+    account_type: str = "agency"  # "agency" | "individual" -- 'individual' is how a
+    # superuser creates what's effectively a single standalone candidate: one
+    # Organization + one AdminUser who is also the linked Candidate (see
+    # Organization.account_type / AdminUser.linked_candidate_id docstrings).
+    trial_days: int | None = DEFAULT_TRIAL_DAYS  # None means no trial expiry (a real paid account)
+
+
+class CreateOrganizationResponse(BaseModel):
+    organization_id: int
+    organization_name: str
+    invited_email: str
+    trial_expires_at: str | None = None
+
+
+@router.post(
+    "/api/superuser/organizations",
+    response_model=CreateOrganizationResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def create_organization(
+    payload: CreateOrganizationRequest,
+    db: Session = Depends(get_db),
+    superuser: SuperUser = Depends(get_current_superuser),
+):
+    """Same effect as a staff member's invite-organization, but
+    attributed to this superuser directly (Organization.created_by_superuser_id,
+    never created_by_staff_id) -- for onboarding an org, or a standalone
+    individual/candidate, yourself rather than through a staff account."""
+    org_name = payload.organization_name.strip()
+    if db.query(Organization).filter_by(name=org_name).one_or_none():
+        raise HTTPException(status_code=409, detail=f"An organization named '{org_name}' already exists.")
+    if payload.account_type not in ("agency", "individual"):
+        raise HTTPException(status_code=422, detail="account_type must be 'agency' or 'individual'.")
+    if payload.trial_days is not None and payload.trial_days < 0:
+        raise HTTPException(status_code=422, detail="trial_days must be zero or positive (or omitted for no trial).")
+
+    org = Organization(name=org_name, created_by_superuser_id=superuser.id, account_type=payload.account_type)
+    set_organization_trial(db, org, payload.trial_days)
+    db.add(org)
+    db.flush()
+
+    invite, otp = create_invite(
+        db, email=payload.admin_email, role="admin", organization_id=org.id,
+        invited_by_type="superuser", invited_by_id=superuser.id,
+    )
+    try:
+        send_invite_email(payload.admin_email, otp, "admin", org_name)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=f"Organization created, but invite email failed to send: {e}")
+
+    return CreateOrganizationResponse(
+        organization_id=org.id,
+        organization_name=org.name,
+        invited_email=payload.admin_email,
+        trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
+    )
+
+
+class TrialReminderRunResponse(BaseModel):
+    organizations_reminded: int
+    organizations_failed: int
+    candidates_reminded: int
+    candidates_failed: int
+
+
+@router.post(
+    "/api/superuser/trial-reminders/run",
+    response_model=TrialReminderRunResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def run_trial_reminders(db: Session = Depends(get_db)):
+    """Manually triggers the same scan a scheduled job would run
+    periodically (cron / Windows Task Scheduler) -- see
+    services/trial_service.py::check_and_send_trial_reminders. Safe to
+    call repeatedly: each organization/subscription only ever gets one
+    reminder per expiry date, guarded by trial_reminder_sent_at."""
+    from services.trial_service import check_and_send_trial_reminders
+
+    return TrialReminderRunResponse(**check_and_send_trial_reminders(db))

@@ -14,6 +14,13 @@ python -m db.seed
 # 3. Create the platform-level superuser account (you)
 python -m api.bootstrap_superuser --username your_username
 
+# 3b. (Local dev convenience) Instead of 3, you can seed a superuser
+#     with a STABLE username/password from your .env instead of typing
+#     one interactively every time you wipe the DB. One-time setup: add
+#     DEV_SUPERUSER_USERNAME and DEV_SUPERUSER_PASSWORD to your .env,
+#     then run this any time you recreate the database:
+python -m api.bootstrap_superuser_dev
+
 # 4. (Optional) Create a staff account -- staff onboard organizations
 #    and their first admin via the app itself (POST /api/staff/invite-organization),
 #    so this is only needed if you want a staff account beyond the superuser.
@@ -58,6 +65,19 @@ you change `db/models.py` and the database already has the old table, you must
 drop and recreate the database (or the specific changed table) before
 `python -m db.session` will apply the new structure. This tripped us up once
 already -- see the note in this repo's history.
+
+While there's no real data worth preserving yet (early development), the
+fastest way to apply any schema change is a full reset rather than hand-writing
+ALTER TABLE statements:
+```
+python -m db.scripts.reset_db
+python -m db.seed
+python -m api.bootstrap_superuser_dev
+```
+This drops and recreates every table from the current `db/models.py`, so it
+also wipes your superuser account -- re-seed it afterward with the command
+above. Once there's real organization/candidate data worth keeping, switch to
+a proper migration tool (e.g. Alembic) instead of reaching for this.
 
 ## 2. Lost actual data (jobs/recruiters/decisions you'd accumulated)
 

@@ -149,6 +149,7 @@ CREATE TABLE organizations (
 	id SERIAL NOT NULL, 
 	name VARCHAR NOT NULL, 
 	created_by_staff_id INTEGER, 
+	created_by_superuser_id INTEGER, 
 	account_type VARCHAR NOT NULL, 
 	is_active BOOLEAN NOT NULL, 
 	autonomous_email_enabled BOOLEAN NOT NULL, 
@@ -167,9 +168,12 @@ CREATE TABLE organizations (
 	business_hours_start_hour INTEGER NOT NULL, 
 	business_hours_end_hour INTEGER NOT NULL, 
 	business_hours_timezone VARCHAR NOT NULL, 
+	trial_expires_at DATE, 
+	trial_reminder_sent_at TIMESTAMP WITH TIME ZONE, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
 	PRIMARY KEY (id), 
-	FOREIGN KEY(created_by_staff_id) REFERENCES staff (id)
+	FOREIGN KEY(created_by_staff_id) REFERENCES staff (id), 
+	FOREIGN KEY(created_by_superuser_id) REFERENCES super_users (id)
 );
 
 CREATE TABLE candidates (
@@ -349,6 +353,7 @@ CREATE TABLE subscriptions (
 	cancelled_at TIMESTAMP WITH TIME ZONE, 
 	current_period_start DATE, 
 	current_period_end DATE, 
+	trial_reminder_sent_at TIMESTAMP WITH TIME ZONE, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
 	PRIMARY KEY (id), 

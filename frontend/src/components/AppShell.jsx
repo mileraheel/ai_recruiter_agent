@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import NotificationPrompt from "./NotificationPrompt";
+import TrialBanner from "./TrialBanner";
 
 const NAV_ITEMS = [
   { to: "/post-job", label: "Post Job", icon: "＋" },
@@ -37,6 +38,7 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
+      <TrialBanner />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:border-black/10 md:px-3 md:py-6">
         <div className="px-3 pb-6">

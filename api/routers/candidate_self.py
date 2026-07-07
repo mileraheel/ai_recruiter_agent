@@ -6,13 +6,24 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from api.deps import get_app_storage, get_current_candidate, get_db
-from api.schemas import CandidateMeResponse, CandidateProfileSubmissionResponse, SelfServiceCandidateProfile
-from db.models import Candidate, CandidateProfileSubmission, Organization
+from api.schemas import (
+    ApplicationDetail,
+    ApplicationSummary,
+    CandidateMeResponse,
+    CandidateProfileSubmissionResponse,
+    InterviewResponse,
+    PaginatedResponse,
+    SelfServiceCandidateProfile,
+)
+from db.models import Candidate, CandidateProfileSubmission, Email, Interview, Job, Organization
 from services.candidate_directory import resume_storage_key
 from services.resume_ingestion import ingest_resume
 from services.storage import Storage
 
 router = APIRouter(prefix="/api/me", tags=["candidate-self"], dependencies=[Depends(get_current_candidate)])
+
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
 
 
 @router.get("", response_model=CandidateMeResponse)
@@ -140,9 +151,19 @@ async def upload_resume(
 @router.get("/subscription")
 def get_my_subscription(candidate: Candidate = Depends(get_current_candidate), db: Session = Depends(get_db)):
     from services.billing_service import get_or_create_subscription
+    from services.trial_service import days_remaining
 
     sub = get_or_create_subscription(db, candidate)
     db.commit()
+
+    org = db.query(Organization).filter_by(id=candidate.organization_id).one_or_none()
+    # Whichever expiry is sooner is the one that actually constrains
+    # this candidate -- an org-wide trial (e.g. their whole 'individual'
+    # account) and a per-candidate trial set within an agency are both
+    # optional and independent; show whichever bites first.
+    candidates_dates = [d for d in (sub.current_period_end, org.trial_expires_at if org else None) if d is not None]
+    effective_expires_at = min(candidates_dates) if candidates_dates else None
+
     return {
         "status": sub.status,
         "monthly_rate": float(sub.monthly_rate) if sub.monthly_rate is not None else None,
@@ -150,6 +171,9 @@ def get_my_subscription(candidate: Candidate = Depends(get_current_candidate), d
         "paused_by": sub.paused_by,
         "paused_at": sub.paused_at,
         "availability_status": candidate.availability_status,
+        "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
+        "trial_expires_at": effective_expires_at.isoformat() if effective_expires_at else None,
+        "trial_days_remaining": days_remaining(effective_expires_at),
     }
 
 
@@ -182,3 +206,109 @@ def update_my_availability(
     candidate.availability_status = status_value
     db.commit()
     return {"availability_status": candidate.availability_status}
+
+
+def _to_application_summary(email: Email, job: Job, candidate: Candidate, interview_count: int, latest_interview_at) -> ApplicationSummary:
+    return ApplicationSummary(
+        email_id=email.id,
+        candidate_slug=candidate.slug,
+        candidate_full_name=candidate.full_name,
+        job_id=job.id,
+        job_title=job.job_title,
+        company_name=job.company_name,
+        to_email=email.to_email,
+        send_status=email.status,
+        pipeline_stage=email.pipeline_stage,
+        submitted_to_client_at=email.submitted_to_client_at,
+        interview_count=interview_count,
+        latest_interview_at=latest_interview_at,
+        sent_at=email.sent_at,
+        created_at=email.created_at,
+    )
+
+
+@router.get("/applications", response_model=PaginatedResponse[ApplicationSummary])
+def list_my_applications(
+    pipeline_stage: str | None = None,
+    limit: int = DEFAULT_PAGE_SIZE,
+    offset: int = 0,
+    candidate: Candidate = Depends(get_current_candidate),
+    db: Session = Depends(get_db),
+):
+    """A candidate's own applications and where each one stands --
+    exactly the same data an admin sees in api/routers/reports.py, just
+    scoped to this one candidate_id instead of a whole organization, so
+    a candidate can track their own progress without waiting to be
+    told anything by an admin."""
+    limit = max(1, min(limit, MAX_PAGE_SIZE))
+    offset = max(0, offset)
+
+    query = (
+        db.query(Email, Job)
+        .join(Job, Email.job_id == Job.id)
+        .filter(Email.candidate_id == candidate.id)
+    )
+    if pipeline_stage:
+        query = query.filter(Email.pipeline_stage == pipeline_stage)
+
+    total = query.count()
+    page = query.order_by(Email.created_at.desc()).offset(offset).limit(limit).all()
+
+    results = []
+    for email, job in page:
+        interviews = db.query(Interview).filter_by(email_id=email.id).all()
+        latest = max((i.scheduled_at for i in interviews if i.scheduled_at), default=None)
+        results.append(_to_application_summary(email, job, candidate, len(interviews), latest))
+    return PaginatedResponse(items=results, total=total, limit=limit, offset=offset)
+
+
+@router.get("/applications/{email_id}", response_model=ApplicationDetail)
+def get_my_application(
+    email_id: int, candidate: Candidate = Depends(get_current_candidate), db: Session = Depends(get_db)
+):
+    email = db.query(Email).filter_by(id=email_id, candidate_id=candidate.id).one_or_none()
+    if email is None:
+        raise HTTPException(status_code=404, detail="Application not found")
+    job = db.query(Job).filter_by(id=email.job_id).one_or_none()
+
+    interviews = db.query(Interview).filter_by(email_id=email.id).order_by(Interview.scheduled_at.asc()).all()
+    latest = max((i.scheduled_at for i in interviews if i.scheduled_at), default=None)
+    summary = _to_application_summary(email, job, candidate, len(interviews), latest)
+
+    resume_file_name = email.resume_file_path.rsplit("/", 1)[-1] if email.resume_file_path else None
+    return ApplicationDetail(
+        **summary.model_dump(),
+        subject=email.subject,
+        body=email.body,
+        resume_file_name=resume_file_name,
+        pipeline_notes=email.pipeline_notes,
+        interviews=[InterviewResponse.model_validate(i) for i in interviews],
+    )
+
+
+@router.get("/interviews/upcoming", response_model=list[InterviewResponse])
+def list_my_upcoming_interviews(candidate: Candidate = Depends(get_current_candidate), db: Session = Depends(get_db)):
+    """Scheduled interviews with a future (or unset) date -- the
+    'what's coming up' view, separate from the full history available
+    via /applications/{email_id}. Small, focused response since this is
+    meant for a compact dashboard widget, not a full report."""
+    from datetime import datetime, timezone
+
+    def _naive_to_utc(dt):
+        if dt is None:
+            return None
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
+    now = datetime.now(timezone.utc)
+    rows = (
+        db.query(Interview)
+        .join(Email, Interview.email_id == Email.id)
+        .filter(
+            Email.candidate_id == candidate.id,
+            Interview.status.in_(("scheduled", "rescheduled")),
+        )
+        .order_by(Interview.scheduled_at.asc())
+        .all()
+    )
+    upcoming = [i for i in rows if i.scheduled_at is None or _naive_to_utc(i.scheduled_at) >= now]
+    return [InterviewResponse.model_validate(i) for i in upcoming]

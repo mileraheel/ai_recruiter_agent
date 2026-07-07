@@ -10,15 +10,19 @@ import CandidateSubmissions from "./pages/CandidateSubmissions";
 import CandidateLogin from "./pages/CandidateLogin";
 import CandidateSignup from "./pages/CandidateSignup";
 import CandidateProfile from "./pages/CandidateProfile";
+import MyApplications from "./pages/MyApplications";
 import PostJob from "./pages/PostJob";
 import Applications from "./pages/Applications";
 import ArtifactReview from "./pages/ArtifactReview";
 import SuperuserLogin from "./pages/SuperuserLogin";
 import SuperuserDashboard from "./pages/SuperuserDashboard";
+import StaffLogin from "./pages/StaffLogin";
+import StaffDashboard from "./pages/StaffDashboard";
 
 function loginPathFor(role) {
   if (role === "candidate") return "/candidate/login";
   if (role === "superuser") return "/superuser/login";
+  if (role === "staff") return "/staff/login";
   return "/login";
 }
 
@@ -43,6 +47,15 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/staff/login" element={<StaffLogin />} />
+      <Route
+        path="/staff/dashboard"
+        element={
+          <ProtectedRoute role="staff">
+            <StaffDashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/candidate/login" element={<CandidateLogin />} />
       <Route path="/candidate/signup" element={<CandidateSignup />} />
       <Route
@@ -50,6 +63,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute role="candidate">
             <CandidateProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/candidate/applications"
+        element={
+          <ProtectedRoute role="candidate">
+            <MyApplications />
           </ProtectedRoute>
         }
       />

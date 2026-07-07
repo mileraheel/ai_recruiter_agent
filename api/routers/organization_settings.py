@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from api.deps import get_current_admin, get_db
 from db.models import AdminUser, Organization
+from services.trial_service import days_remaining
 
 router = APIRouter(prefix="/api/organization", tags=["organization-settings"], dependencies=[Depends(get_current_admin)])
 
@@ -29,6 +30,11 @@ class OrganizationSettingsResponse(BaseModel):
     business_hours_start_hour: int
     business_hours_end_hour: int
     business_hours_timezone: str
+    # Read-only -- set by whoever (staff/superuser) onboarded this org,
+    # never editable by the org's own admin via this endpoint (they
+    # could otherwise just extend their own trial).
+    trial_expires_at: str | None = None
+    trial_days_remaining: int | None = None
 
 
 class OrganizationSettingsUpdate(BaseModel):
@@ -70,6 +76,8 @@ def _to_response(org) -> "OrganizationSettingsResponse":
         business_hours_start_hour=org.business_hours_start_hour,
         business_hours_end_hour=org.business_hours_end_hour,
         business_hours_timezone=org.business_hours_timezone,
+        trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
+        trial_days_remaining=days_remaining(org.trial_expires_at),
     )
 
 

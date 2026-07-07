@@ -166,6 +166,14 @@ class Organization(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     created_by_staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff.id"))
+    # A superuser can also onboard an organization directly (skipping
+    # the staff-invite flow entirely) -- exactly one of
+    # created_by_staff_id / created_by_superuser_id is set, never both,
+    # since either identifies the "sales person" of record for this
+    # account. Both nullable because neither applies to an org created
+    # some other way (e.g. self-service signup has neither -- see
+    # api/routers/auth.py::signup).
+    created_by_superuser_id: Mapped[int | None] = mapped_column(ForeignKey("super_users.id"))
     # 'agency': a staffing company -- separate admin(s) managing a bench
     # of candidates, each candidate approves nothing about anyone else's
     # profile, only their own submissions go to the admin for review.
@@ -230,6 +238,20 @@ class Organization(Base):
     business_hours_start_hour: Mapped[int] = mapped_column(Integer, default=9)
     business_hours_end_hour: Mapped[int] = mapped_column(Integer, default=18)
     business_hours_timezone: Mapped[str] = mapped_column(String, default="America/New_York")
+    # Free-trial / subscription expiry for this whole account -- covers
+    # both an agency's overall access and, for an 'individual' account,
+    # that same person's own access (an individual IS the org). Null
+    # means no expiry is tracked (e.g. a paid, non-trial account with
+    # billing handled some other way). Set at onboarding time by
+    # whichever superuser/staff created the org -- never editable by
+    # the org's own admin, or they could just extend their own trial.
+    trial_expires_at: Mapped[date | None] = mapped_column(Date)
+    # Guards against sending the "expiring soon" reminder email more
+    # than once for the same expiry -- set the first time
+    # services/trial_service.py actually sends one, cleared whenever
+    # trial_expires_at is changed (a renewal) so a new reminder can
+    # fire for the new date.
+    trial_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -315,6 +337,11 @@ class Subscription(Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     current_period_start: Mapped[date | None] = mapped_column(Date)
     current_period_end: Mapped[date | None] = mapped_column(Date)
+    # Same dedup purpose as Organization.trial_reminder_sent_at, but for
+    # an individual candidate's own trial/subscription period end
+    # (current_period_end above) -- an agency admin can set a
+    # per-candidate trial distinct from the org's own trial_expires_at.
+    trial_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

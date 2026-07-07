@@ -38,6 +38,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const loginStaff = useCallback(async (username, password) => {
+    setError(null);
+    try {
+      const res = await api.staffLogin(username, password);
+      setToken(res.access_token);
+      setRole("staff");
+      setRoleState("staff");
+      setIsAuthed(true);
+      return true;
+    } catch (e) {
+      setError(e.detail || "Login failed");
+      return false;
+    }
+  }, []);
+
   const loginCandidate = useCallback(async (loginEmail, password) => {
     setError(null);
     try {
@@ -77,10 +92,11 @@ export function AuthProvider({ children }) {
     clearToken();
     setIsAuthed(false);
     setRoleState(null);
+    sessionStorage.removeItem("ai_recruiter_trial_banner_shown");
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, signupCandidate, logout, error }}>
+    <AuthContext.Provider value={{ isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, loginStaff, signupCandidate, logout, error }}>
       {children}
     </AuthContext.Provider>
   );

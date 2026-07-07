@@ -76,3 +76,19 @@ def send_invite_email(to_email: str, otp: str, role: str, organization_name: str
         f"along with the code to set your password and get started."
     )
     send_email(to_email, subject, body)
+
+
+def send_trial_reminder_email(to_email: str, expires_at, account_label: str | None = None) -> None:
+    """expires_at: a date (not datetime) -- Organization.trial_expires_at
+    or Subscription.current_period_end, both plain dates. Sent once per
+    expiry by services/trial_service.py, which owns the dedup logic;
+    this function just formats and sends -- it doesn't decide whether
+    to send."""
+    subject = "Your subscription is expiring soon"
+    who = f" for {account_label}" if account_label else ""
+    body = (
+        f"This is a reminder that your subscription{who} expires on {expires_at.isoformat()}.\n\n"
+        f"Please get in touch with your sales person to renew, or simply reply to this "
+        f"email and we'll follow up."
+    )
+    send_email(to_email, subject, body)
