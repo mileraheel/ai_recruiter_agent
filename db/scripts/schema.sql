@@ -89,6 +89,13 @@ CREATE TABLE pending_actions (
 	PRIMARY KEY (id)
 );
 
+CREATE TABLE platform_settings (
+	id SERIAL NOT NULL, 
+	invite_expire_days INTEGER NOT NULL, 
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, 
+	PRIMARY KEY (id)
+);
+
 CREATE TABLE profile_refreshes (
 	id SERIAL NOT NULL, 
 	source_name VARCHAR, 
@@ -197,7 +204,7 @@ CREATE TABLE invites (
 	id SERIAL NOT NULL, 
 	email VARCHAR NOT NULL, 
 	role VARCHAR NOT NULL, 
-	organization_id INTEGER NOT NULL, 
+	organization_id INTEGER, 
 	invited_by_type VARCHAR NOT NULL, 
 	invited_by_id INTEGER NOT NULL, 
 	otp_hash VARCHAR NOT NULL, 

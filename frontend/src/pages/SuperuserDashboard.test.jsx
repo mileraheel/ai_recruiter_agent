@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../api/client.js", () => ({
   api: {
     getPlatformSummary: vi.fn(),
     getStaffPerformance: vi.fn(),
-    createStaff: vi.fn(),
+    listPendingInvites: vi.fn(),
+    getPlatformSettings: vi.fn(),
+    updatePlatformSettings: vi.fn(),
+    inviteStaff: vi.fn(),
     createOrganization: vi.fn(),
   },
 }));
@@ -41,19 +44,123 @@ const SAMPLE_SUMMARY = {
   ],
 };
 
+function setDefaultMocks() {
+  api.getPlatformSummary.mockResolvedValue(SAMPLE_SUMMARY);
+  api.getStaffPerformance.mockResolvedValue([]);
+  api.listPendingInvites.mockResolvedValue([]);
+  api.getPlatformSettings.mockResolvedValue({ invite_expire_days: 7 });
+}
+
 describe("SuperuserDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getPlatformSummary.mockResolvedValue(SAMPLE_SUMMARY);
-    api.getStaffPerformance.mockResolvedValue([]);
+    setDefaultMocks();
   });
 
-  it("shows sales_person attribution and trial info in the organizations table", async () => {
+  it("shows the Manage tab by default and does NOT fetch reports data on initial load", async () => {
     render(<SuperuserDashboard />);
+
+    expect(screen.getByText("Onboard an organization directly")).toBeInTheDocument();
+    await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled()); // the one cheap mount-time fetch
+    expect(api.getPlatformSummary).not.toHaveBeenCalled();
+    expect(api.getStaffPerformance).not.toHaveBeenCalled();
+    expect(api.listPendingInvites).not.toHaveBeenCalled();
+  });
+
+  it("only fetches reports data when the Reports tab is clicked", async () => {
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+
+    await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
+    expect(api.getPlatformSummary).toHaveBeenCalledTimes(1);
+    expect(api.getStaffPerformance).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-fetch when switching back to Reports a second time -- only Refresh does", async () => {
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+    await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Manage" }));
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+
+    expect(api.getPlatformSummary).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() => expect(api.getPlatformSummary).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows sales_person attribution and trial info in the sortable organizations table", async () => {
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+    await user.click(screen.getByRole("button", { name: "Reports" }));
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
     expect(screen.getByText("staffer1")).toBeInTheDocument();
     expect(screen.getByText("2026-07-10 (3d)")).toBeInTheDocument();
+  });
+
+  it("filters the organizations table by a column search", async () => {
+    api.getPlatformSummary.mockResolvedValue({
+      ...SAMPLE_SUMMARY,
+      organizations: [
+        SAMPLE_SUMMARY.organizations[0],
+        { ...SAMPLE_SUMMARY.organizations[0], organization_id: 2, organization_name: "Beta Corp", sales_person: "staffer2" },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+
+    await waitFor(() => expect(screen.getByText("Beta Corp")).toBeInTheDocument());
+    const orgHeading = screen.getByRole("heading", { name: "Organizations" });
+    const orgTable = orgHeading.parentElement.querySelector("table");
+    await user.type(within(orgTable).getByLabelText("Filter Organization"), "Acme");
+
+    expect(screen.getByText("Acme Staffing")).toBeInTheDocument();
+    expect(screen.queryByText("Beta Corp")).not.toBeInTheDocument();
+  });
+
+  it("sorts the organizations table when a column header is clicked", async () => {
+    api.getPlatformSummary.mockResolvedValue({
+      ...SAMPLE_SUMMARY,
+      organizations: [
+        { ...SAMPLE_SUMMARY.organizations[0], organization_id: 1, organization_name: "Zebra Corp" },
+        { ...SAMPLE_SUMMARY.organizations[0], organization_id: 2, organization_name: "Acme Corp" },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+    await waitFor(() => expect(screen.getByText("Zebra Corp")).toBeInTheDocument());
+
+    const orgHeading = screen.getByRole("heading", { name: "Organizations" });
+    const orgTable = orgHeading.parentElement.querySelector("table");
+    await user.click(within(orgTable).getByRole("button", { name: /^Organization/ }));
+
+    const cells = within(orgTable)
+      .getAllByRole("row")
+      .map((r) => r.textContent);
+    const zebraIdx = cells.findIndex((c) => c.includes("Zebra Corp"));
+    const acmeIdx = cells.findIndex((c) => c.includes("Acme Corp"));
+    expect(acmeIdx).toBeLessThan(zebraIdx);
+  });
+
+  it("invites a staff member by email only -- no username/password fields", async () => {
+    api.inviteStaff.mockResolvedValue({ invited_email: "newstaffer@example.com", expires_at: "2026-07-14T00:00:00Z" });
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+
+    expect(screen.queryByPlaceholderText(/username/i)).not.toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Email address"), "newstaffer@example.com");
+    await user.click(screen.getByRole("button", { name: "Send invite" }));
+
+    await waitFor(() => expect(api.inviteStaff).toHaveBeenCalledWith("newstaffer@example.com"));
+    await waitFor(() => expect(screen.getByText(/invite sent to newstaffer@example\.com/i)).toBeInTheDocument());
   });
 
   it("creates an organization directly, attributing the superuser as sales person", async () => {
@@ -65,8 +172,6 @@ describe("SuperuserDashboard", () => {
     });
     const user = userEvent.setup();
     render(<SuperuserDashboard />);
-
-    await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
 
     await user.type(screen.getByPlaceholderText("Organization name"), "Solo Jane");
     await user.type(screen.getByPlaceholderText("Admin/candidate email"), "jane@example.com");
@@ -91,8 +196,6 @@ describe("SuperuserDashboard", () => {
     const user = userEvent.setup();
     render(<SuperuserDashboard />);
 
-    await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
-
     await user.type(screen.getByPlaceholderText("Organization name"), "Acme Staffing");
     await user.type(screen.getByPlaceholderText("Admin/candidate email"), "x@acme.com");
     await user.click(screen.getByRole("button", { name: /create & send invite/i }));
@@ -102,20 +205,40 @@ describe("SuperuserDashboard", () => {
     );
   });
 
-  it("creates a staff account", async () => {
-    api.createStaff.mockResolvedValue({ id: 1, username: "newstaffer", is_active: true });
+  it("saves updated invite-expiry platform settings", async () => {
+    api.updatePlatformSettings.mockResolvedValue({ invite_expire_days: 10 });
     const user = userEvent.setup();
     render(<SuperuserDashboard />);
 
-    await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
+    await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled());
+    const daysInput = await screen.findByDisplayValue("7");
+    await user.clear(daysInput);
+    await user.type(daysInput, "10");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    await user.type(screen.getByPlaceholderText("Username"), "newstaffer");
-    await user.type(screen.getByPlaceholderText(/10\+ characters/i), "SuperSecret123");
-    await user.click(screen.getByRole("button", { name: /create staff account/i }));
+    await waitFor(() => expect(api.updatePlatformSettings).toHaveBeenCalledWith({ invite_expire_days: 10 }));
+    await waitFor(() => expect(screen.getByText(/new invites will use this expiry/i)).toBeInTheDocument());
+  });
 
-    await waitFor(() =>
-      expect(api.createStaff).toHaveBeenCalledWith("newstaffer", "SuperSecret123")
-    );
-    await waitFor(() => expect(screen.getByText(/'newstaffer' created/i)).toBeInTheDocument());
+  it("shows pending invites in the reports tab", async () => {
+    api.listPendingInvites.mockResolvedValue([
+      {
+        id: 1,
+        email: "pending@example.com",
+        role: "staff",
+        organization_name: null,
+        invited_by_type: "superuser",
+        expires_at: "2026-07-14T00:00:00Z",
+        used_at: null,
+        attempts: 0,
+        max_attempts: 5,
+      },
+    ]);
+    const user = userEvent.setup();
+    render(<SuperuserDashboard />);
+    await user.click(screen.getByRole("button", { name: "Reports" }));
+
+    await waitFor(() => expect(screen.getByText("pending@example.com")).toBeInTheDocument());
+    expect(screen.getByText("staff")).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import DataTable from "../components/DataTable";
 
 const STAGE_META = {
   contacted: { label: "Contacted", cls: "bg-black/5 text-ink/60" },
@@ -15,28 +16,6 @@ function StageBadge({ stage }) {
   if (!stage) return <span className="text-xs text-ink/40">No stage set</span>;
   const meta = STAGE_META[stage] || { label: stage, cls: "bg-black/5" };
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>;
-}
-
-function ApplicationRow({ app, expanded, onToggle }) {
-  return (
-    <div className="rounded-xl border border-black/10 overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="font-medium text-sm">{app.candidate_full_name}</p>
-          <p className="text-xs text-ink/50 mt-0.5">
-            {app.job_title || "(untitled)"} {app.company_name ? `— ${app.company_name}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <StageBadge stage={app.pipeline_stage} />
-          {app.interview_count > 0 && (
-            <span className="text-xs text-ink/50">{app.interview_count} interview{app.interview_count === 1 ? "" : "s"}</span>
-          )}
-        </div>
-      </button>
-      {expanded && <ApplicationDetail emailId={app.email_id} />}
-    </div>
-  );
 }
 
 function ApplicationDetail({ emailId }) {
@@ -80,10 +59,10 @@ function ApplicationDetail({ emailId }) {
     }
   }
 
-  if (!detail) return <div className="px-4 py-3 text-xs text-ink/40 border-t border-black/10">Loading…</div>;
+  if (!detail) return <p className="text-xs text-ink/40">Loading…</p>;
 
   return (
-    <div className="border-t border-black/10 px-4 py-4 space-y-4">
+    <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
       <div className="text-xs text-ink/50 space-y-0.5">
         <p>To: {detail.to_email || "—"}</p>
         <p>Subject: {detail.subject}</p>
@@ -160,11 +139,53 @@ function ApplicationDetail({ emailId }) {
   );
 }
 
+const APPLICATION_COLUMNS = [
+  {
+    key: "candidate_full_name",
+    label: "Candidate",
+    sortValue: (r) => r.candidate_full_name?.toLowerCase() || "",
+    filterValue: (r) => r.candidate_full_name,
+    render: (r) => <span className="font-medium">{r.candidate_full_name}</span>,
+  },
+  {
+    key: "job_title",
+    label: "Role",
+    sortValue: (r) => r.job_title?.toLowerCase() || "",
+    filterValue: (r) => `${r.job_title || ""} ${r.company_name || ""}`,
+    render: (r) => (
+      <div>
+        <p>{r.job_title || "(untitled)"}</p>
+        {r.company_name && <p className="text-xs text-ink/50">{r.company_name}</p>}
+      </div>
+    ),
+  },
+  {
+    key: "pipeline_stage",
+    label: "Stage",
+    sortValue: (r) => r.pipeline_stage || "",
+    filterValue: (r) => (r.pipeline_stage ? STAGE_META[r.pipeline_stage]?.label || r.pipeline_stage : "not set"),
+    render: (r) => <StageBadge stage={r.pipeline_stage} />,
+  },
+  {
+    key: "interview_count",
+    label: "Interviews",
+    sortValue: (r) => r.interview_count,
+    filterValue: (r) => r.interview_count,
+    render: (r) => (r.interview_count > 0 ? `${r.interview_count}` : "—"),
+  },
+  {
+    key: "sent_at",
+    label: "Sent",
+    sortValue: (r) => r.sent_at || "",
+    filterValue: (r) => r.sent_at,
+    render: (r) => (r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "—"),
+  },
+];
+
 export default function Applications() {
   const [applications, setApplications] = useState(null);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     api.listApplications().then(setApplications).catch((e) => setError(e.detail || "Failed to load"));
@@ -175,7 +196,10 @@ export default function Applications() {
     <div className="space-y-5">
       <div>
         <h1 className="text-lg font-semibold tracking-tight">Applications</h1>
-        <p className="text-sm text-ink/60 mt-0.5">Every application prepared/sent for your candidates — persists across refreshes.</p>
+        <p className="text-sm text-ink/60 mt-0.5">
+          Every application prepared/sent for your candidates — persists across refreshes. Click a row
+          to view details and update its pipeline stage.
+        </p>
       </div>
 
       {summary && (
@@ -198,22 +222,13 @@ export default function Applications() {
 
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
-      {applications !== null && applications.length === 0 && (
-        <div className="rounded-xl border border-dashed border-black/15 p-8 text-center">
-          <p className="text-sm text-ink/50">No applications yet — post a job to get started.</p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {applications?.map((app) => (
-          <ApplicationRow
-            key={app.email_id}
-            app={app}
-            expanded={expandedId === app.email_id}
-            onToggle={() => setExpandedId(expandedId === app.email_id ? null : app.email_id)}
-          />
-        ))}
-      </div>
+      <DataTable
+        columns={APPLICATION_COLUMNS}
+        rows={applications || []}
+        rowKey={(r) => r.email_id}
+        emptyMessage="No applications yet — post a job to get started."
+        expandedContent={(r) => <ApplicationDetail emailId={r.email_id} />}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import { setToken, setRole } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 export default function AdminSignup() {
   const [organizationName, setOrganizationName] = useState("");
@@ -10,6 +10,7 @@ export default function AdminSignup() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { loginWithToken } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -17,10 +18,8 @@ export default function AdminSignup() {
     setError(null);
     try {
       const res = await api.adminSignup({ organization_name: organizationName, username, password });
-      setToken(res.access_token);
-      setRole("admin");
+      loginWithToken(res.access_token, "admin");
       navigate("/post-job");
-      window.location.reload(); // ensure AuthContext picks up the new session
     } catch (e) {
       setError(e.detail || "Sign up failed");
     } finally {

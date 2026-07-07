@@ -71,10 +71,18 @@ export default function Login() {
           <Link to="/signup" className="underline">
             Register your corporate
           </Link>
+          {" · "}
+          <Link to="/accept-invite" className="underline">
+            I have an invite
+          </Link>
         </p>
         <p className="text-center text-xs text-ink/30">
           <Link to="/superuser/login" className="underline">
             Platform admin sign in
+          </Link>
+          {" · "}
+          <Link to="/staff/login" className="underline">
+            Staff sign in
           </Link>
         </p>
       </form>

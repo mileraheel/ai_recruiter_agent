@@ -1,6 +1,59 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import DataTable from "../components/DataTable";
+
+const ORG_COLUMNS = (onDeactivate) => [
+  {
+    key: "organization_name",
+    label: "Organization",
+    sortValue: (r) => r.organization_name?.toLowerCase() || "",
+    filterValue: (r) => r.organization_name,
+    render: (r) => <span className="font-medium">{r.organization_name}</span>,
+  },
+  { key: "account_type", label: "Type", sortValue: (r) => r.account_type, filterValue: (r) => r.account_type },
+  { key: "candidate_count", label: "Candidates", sortValue: (r) => r.candidate_count, filterValue: (r) => r.candidate_count },
+  { key: "admin_count", label: "Admins", sortValue: (r) => r.admin_count, filterValue: (r) => r.admin_count },
+  { key: "jobs_posted", label: "Jobs", sortValue: (r) => r.jobs_posted, filterValue: (r) => r.jobs_posted },
+  {
+    key: "trial",
+    label: "Trial",
+    sortValue: (r) => (r.trial_days_remaining === null || r.trial_days_remaining === undefined ? null : r.trial_days_remaining),
+    filterValue: (r) => r.trial_expires_at,
+    render: (r) => (
+      <span className="text-xs">
+        {r.trial_expires_at
+          ? `${r.trial_expires_at}${r.trial_days_remaining !== null && r.trial_days_remaining !== undefined ? ` (${r.trial_days_remaining}d)` : ""}`
+          : "—"}
+      </span>
+    ),
+  },
+  {
+    key: "is_active",
+    label: "Status",
+    sortValue: (r) => (r.is_active ? 1 : 0),
+    filterValue: (r) => (r.is_active ? "active" : "deactivated"),
+    render: (r) => (
+      <span
+        className={`text-xs rounded-full px-2 py-0.5 font-medium ${
+          r.is_active ? "bg-accentSoft text-accent" : "bg-dangerSoft text-danger"
+        }`}
+      >
+        {r.is_active ? "Active" : "Deactivated"}
+      </span>
+    ),
+  },
+  {
+    key: "actions",
+    label: "",
+    render: (r) =>
+      r.is_active && (
+        <button onClick={() => onDeactivate(r.organization_id, r.organization_name)} className="text-xs font-medium text-danger">
+          Deactivate
+        </button>
+      ),
+  },
+];
 
 export default function StaffDashboard() {
   const [orgs, setOrgs] = useState(null);
@@ -69,7 +122,7 @@ export default function StaffDashboard() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Organizations you've onboarded</h1>
         <button onClick={logout} className="text-xs font-medium text-ink/50">
@@ -135,68 +188,12 @@ export default function StaffDashboard() {
 
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
-      <div className="rounded-xl border border-black/10 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-black/5 text-left text-xs text-ink/50">
-            <tr>
-              <th className="px-3 py-2 font-medium">Organization</th>
-              <th className="px-3 py-2 font-medium">Type</th>
-              <th className="px-3 py-2 font-medium">Candidates</th>
-              <th className="px-3 py-2 font-medium">Admins</th>
-              <th className="px-3 py-2 font-medium">Jobs</th>
-              <th className="px-3 py-2 font-medium">Trial</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {orgs?.map((org) => (
-              <tr key={org.organization_id} className="border-t border-black/10">
-                <td className="px-3 py-2 font-medium">{org.organization_name}</td>
-                <td className="px-3 py-2">{org.account_type}</td>
-                <td className="px-3 py-2">{org.candidate_count}</td>
-                <td className="px-3 py-2">{org.admin_count}</td>
-                <td className="px-3 py-2">{org.jobs_posted}</td>
-                <td className="px-3 py-2 text-xs">
-                  {org.trial_expires_at
-                    ? `${org.trial_expires_at}${
-                        org.trial_days_remaining !== null && org.trial_days_remaining !== undefined
-                          ? ` (${org.trial_days_remaining}d)`
-                          : ""
-                      }`
-                    : "—"}
-                </td>
-                <td className="px-3 py-2">
-                  <span
-                    className={`text-xs rounded-full px-2 py-0.5 font-medium ${
-                      org.is_active ? "bg-accentSoft text-accent" : "bg-dangerSoft text-danger"
-                    }`}
-                  >
-                    {org.is_active ? "Active" : "Deactivated"}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {org.is_active && (
-                    <button
-                      onClick={() => handleDeactivate(org.organization_id, org.organization_name)}
-                      className="text-xs font-medium text-danger"
-                    >
-                      Deactivate
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {orgs?.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-ink/40">
-                  No organizations onboarded yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={ORG_COLUMNS(handleDeactivate)}
+        rows={orgs || []}
+        rowKey={(r) => r.organization_id}
+        emptyMessage="No organizations onboarded yet."
+      />
     </div>
   );
 }

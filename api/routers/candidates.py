@@ -99,12 +99,15 @@ def invite_candidate(
     from the request body."""
     org = db.query(Organization).filter_by(id=admin.organization_id).one()
 
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
     invite, otp = create_invite(
         db, email=payload.email, role="candidate", organization_id=admin.organization_id,
         invited_by_type="admin", invited_by_id=admin.id,
     )
     try:
-        send_invite_email(payload.email, otp, "candidate", org.name)
+        send_invite_email(payload.email, otp, "candidate", org.name, settings.invite_expire_days)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=f"Invite created, but email failed to send: {e}")
 

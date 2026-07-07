@@ -16,7 +16,7 @@ from api.auth import create_access_token, hash_password, verify_otp
 from api.deps import get_db
 from api.schemas import TokenResponse
 from config.schema import slugify_name
-from db.models import AdminUser, Candidate, Invite, Organization
+from db.models import AdminUser, Candidate, Invite, Organization, Staff
 
 router = APIRouter(prefix="/api/invite", tags=["invite"])
 
@@ -27,7 +27,7 @@ class InviteRegisterRequest(BaseModel):
     password: str
     # Role-specific -- only one of these is required depending on the
     # invite's role, validated after the invite is looked up.
-    username: str | None = None  # for admin invites
+    username: str | None = None  # for admin and staff invites
     full_name: str | None = None  # for candidate invites
 
 
@@ -145,6 +145,28 @@ def register_via_invite(payload: InviteRegisterRequest, db: Session = Depends(ge
         db.commit()
 
         token = create_access_token(email, role="candidate", extra_claims={"candidate_id": account.id})
+        return TokenResponse(access_token=token)
+
+    elif invite.role == "staff":
+        if not payload.username:
+            raise HTTPException(status_code=422, detail="username is required for a staff invite.")
+        if db.query(Staff).filter_by(username=payload.username).one_or_none():
+            raise HTTPException(status_code=409, detail="A staff account with this username already exists.")
+
+        # invited_by_id on a staff invite is always a super_users.id --
+        # see api/routers/superuser.py::invite_staff, the only place a
+        # role='staff' invite is ever created.
+        staff = Staff(
+            username=payload.username,
+            password_hash=hash_password(payload.password),
+            created_by_superuser_id=invite.invited_by_id,
+        )
+        db.add(staff)
+        db.flush()
+        invite.used_at = datetime.now(timezone.utc)
+        db.commit()
+
+        token = create_access_token(staff.username, role="staff")
         return TokenResponse(access_token=token)
 
     raise HTTPException(status_code=500, detail=f"Invite has an unrecognized role: {invite.role}")

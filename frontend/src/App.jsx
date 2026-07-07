@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import AppShell from "./components/AppShell";
 import Login from "./pages/Login";
 import AdminSignup from "./pages/AdminSignup";
+import AcceptInvite from "./pages/AcceptInvite";
 import ApprovalQueue from "./pages/ApprovalQueue";
 import Candidates from "./pages/Candidates";
 import JobCheck from "./pages/JobCheck";
@@ -38,6 +39,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<AdminSignup />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/superuser/login" element={<SuperuserLogin />} />
       <Route
         path="/superuser/dashboard"

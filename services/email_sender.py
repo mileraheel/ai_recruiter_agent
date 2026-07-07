@@ -65,13 +65,21 @@ def send_email(to_email: str, subject: str, body_text: str) -> None:
         server.sendmail(config["from_email"], [to_email], msg.as_string())
 
 
-def send_invite_email(to_email: str, otp: str, role: str, organization_name: str) -> None:
-    role_label = "admin" if role == "admin" else "candidate"
-    subject = f"You're invited to join {organization_name}"
+def send_invite_email(to_email: str, otp: str, role: str, organization_name: str | None, expire_days: int) -> None:
+    role_labels = {"admin": "admin", "candidate": "candidate", "staff": "staff member"}
+    role_label = role_labels.get(role, role)
+    if role == "staff":
+        subject = "You're invited to join the platform as staff"
+        intro = "You've been invited to join the platform as a staff member."
+    else:
+        subject = f"You're invited to join {organization_name}"
+        intro = f"You've been invited to join {organization_name} as a {role_label}."
+
+    day_word = "day" if expire_days == 1 else "days"
     body = (
-        f"You've been invited to join {organization_name} as a {role_label}.\n\n"
+        f"{intro}\n\n"
         f"Your one-time code: {otp}\n"
-        f"This code expires in 30 minutes and can only be used once.\n\n"
+        f"This code expires in {expire_days} {day_word} and can only be used once.\n\n"
         f"Open the app, choose 'I have an invite', and enter this email address "
         f"along with the code to set your password and get started."
     )

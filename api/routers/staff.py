@@ -52,8 +52,11 @@ def invite_organization(
         invited_by_type="staff", invited_by_id=staff.id,
     )
 
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
     try:
-        send_invite_email(payload.admin_email, otp, "admin", org_name)
+        send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
         # Org + invite are already committed -- surface the SMTP failure
         # clearly rather than silently leaving the admin with no way to

@@ -53,6 +53,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // For flows that receive a token/role from somewhere other than a
+  // role-specific login call -- currently just invite redemption (see
+  // AcceptInvite.jsx), which doesn't know the role ahead of time the
+  // way loginAdmin/loginCandidate/etc. do.
+  const loginWithToken = useCallback((token, role) => {
+    setToken(token);
+    setRole(role);
+    setRoleState(role);
+    setIsAuthed(true);
+  }, []);
+
   const loginCandidate = useCallback(async (loginEmail, password) => {
     setError(null);
     try {
@@ -96,7 +107,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, loginStaff, signupCandidate, logout, error }}>
+    <AuthContext.Provider
+      value={{
+        isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, loginStaff, loginWithToken,
+        signupCandidate, logout, error,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

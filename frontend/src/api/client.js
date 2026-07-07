@@ -22,6 +22,24 @@ export function setRole(role) {
   localStorage.setItem(ROLE_KEY, role);
 }
 
+/**
+ * Reads the 'role' claim out of a JWT's payload -- no signature
+ * verification, since this is only ever called on a token this same
+ * browser just received directly from our own backend a moment ago
+ * (see AcceptInvite.jsx, the one place the frontend doesn't already
+ * know the role ahead of time the way every role-specific login call
+ * does). Never use this to make a trust decision about a token from
+ * anywhere else.
+ */
+export function decodeJwtRole(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.role || null;
+  } catch {
+    return null;
+  }
+}
+
 class ApiError extends Error {
   constructor(status, detail) {
     super(typeof detail === "string" ? detail : JSON.stringify(detail));
@@ -42,6 +60,7 @@ const AUTH_ENDPOINTS = new Set([
   "/candidate-auth/login",
   "/candidate-auth/signup",
   "/staff-auth/login",
+  "/invite/register",
 ]);
 
 async function request(path, { method = "GET", body, form } = {}) {
@@ -191,9 +210,17 @@ export const api = {
   deactivateOrganization: (organizationId) =>
     request(`/staff/organizations/${organizationId}`, { method: "DELETE" }),
 
-  // Superuser creates staff accounts
-  createStaff: (username, password) => request("/superuser/staff", { method: "POST", body: { username, password } }),
+  // Superuser invites staff (OTP-based, same as every other invite -- see redeemInvite)
+  inviteStaff: (email) => request("/superuser/staff/invite", { method: "POST", body: { email } }),
   getStaffPerformance: () => request("/superuser/staff/performance"),
+  listPendingInvites: () => request("/superuser/invites/pending"),
+  getPlatformSettings: () => request("/superuser/settings"),
+  updatePlatformSettings: (payload) => request("/superuser/settings", { method: "PUT", body: payload }),
+
+  // Generic OTP invite redemption -- used by staff, admin, and candidate
+  // invites alike; the invite's own role/organization decide what's
+  // created, never what the registrant supplies (see api/routers/invite.py)
+  redeemInvite: (payload) => request("/invite/register", { method: "POST", body: payload }),
 
   // Superuser onboards an organization (or standalone individual/candidate) directly
   createOrganization: (payload) => request("/superuser/organizations", { method: "POST", body: payload }),

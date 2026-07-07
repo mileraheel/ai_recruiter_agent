@@ -164,20 +164,68 @@ describe("api client", () => {
     });
   });
 
-  it("createStaff posts username/password to /api/superuser/staff", async () => {
+  it("inviteStaff posts email to /api/superuser/staff/invite", async () => {
     const { api, setToken } = await import("../api/client.js");
     setToken("fake-token");
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: 1, username: "staffer", is_active: true }),
+      json: async () => ({ invited_email: "staffer@example.com", expires_at: "2026-07-14T00:00:00Z" }),
     });
 
-    await api.createStaff("staffer", "supersecretpw");
+    await api.inviteStaff("staffer@example.com");
     const [url, options] = global.fetch.mock.calls[0];
-    expect(url).toContain("/api/superuser/staff");
-    expect(JSON.parse(options.body)).toEqual({ username: "staffer", password: "supersecretpw" });
+    expect(url).toContain("/api/superuser/staff/invite");
+    expect(JSON.parse(options.body)).toEqual({ email: "staffer@example.com" });
+  });
+
+  it("listPendingInvites fetches /api/superuser/invites/pending", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [] });
+
+    await api.listPendingInvites();
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/superuser/invites/pending");
+  });
+
+  it("getPlatformSettings and updatePlatformSettings hit /api/superuser/settings", async () => {
+    const { api, setToken } = await import("../api/client.js");
+    setToken("fake-token");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ invite_expire_days: 7 }),
+    });
+    await api.getPlatformSettings();
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/superuser/settings");
+    expect(global.fetch.mock.calls[0][1].method).toBe("GET");
+
+    await api.updatePlatformSettings({ invite_expire_days: 10 });
+    const [url, options] = global.fetch.mock.calls[1];
+    expect(url).toContain("/api/superuser/settings");
+    expect(options.method).toBe("PUT");
+    expect(JSON.parse(options.body)).toEqual({ invite_expire_days: 10 });
+  });
+
+  it("redeemInvite posts to /api/invite/register and does NOT redirect on a wrong-OTP 401", async () => {
+    const { api } = await import("../api/client.js");
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: "Incorrect code. 4 attempts remaining." }),
+    });
+    delete window.location;
+    window.location = { href: "" };
+
+    await expect(
+      api.redeemInvite({ email: "x@example.com", otp: "000000", password: "SomePassword1" })
+    ).rejects.toMatchObject({ status: 401 });
+    expect(window.location.href).toBe("");
+    expect(global.fetch.mock.calls[0][0]).toContain("/api/invite/register");
   });
 
   it("createOrganization posts to /api/superuser/organizations with trial_days", async () => {

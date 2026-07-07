@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from api.auth import authenticate_superuser, create_access_token, hash_password
+from api.auth import authenticate_superuser, create_access_token
 from api.deps import get_current_superuser, get_db
 from api.schemas import OrganizationSummary, PlatformSummary, TokenResponse
 from db.models import AdminUser, Candidate, Email, Interview, Job, Organization, Staff, SuperUser
@@ -109,40 +109,44 @@ def platform_summary(db: Session = Depends(get_db)):
     )
 
 
-class CreateStaffRequest(BaseModel):
-    username: str
-    password: str
+class InviteStaffRequest(BaseModel):
+    email: str
 
 
-class StaffResponse(BaseModel):
-    id: int
-    username: str
-    is_active: bool
+class InviteStaffResponse(BaseModel):
+    invited_email: str
+    expires_at: str
 
 
-@router.post("/api/superuser/staff", response_model=StaffResponse, dependencies=[Depends(get_current_superuser)])
-def create_staff(
-    payload: CreateStaffRequest,
+@router.post("/api/superuser/staff/invite", response_model=InviteStaffResponse, dependencies=[Depends(get_current_superuser)])
+def invite_staff(
+    payload: InviteStaffRequest,
     db: Session = Depends(get_db),
     superuser: SuperUser = Depends(get_current_superuser),
 ):
-    """Only a superuser can create staff -- no self-signup, same
+    """Only a superuser can invite staff -- no self-signup, same
     reasoning as superuser itself: staff can create organizations and
-    invite admins into them, which is real platform-level trust."""
-    if db.query(Staff).filter_by(username=payload.username).one_or_none():
-        raise HTTPException(status_code=409, detail="A staff account with this username already exists.")
-    if len(payload.password) < 10:
-        raise HTTPException(status_code=422, detail="Password must be at least 10 characters.")
+    invite admins into them, which is real platform-level trust.
 
-    staff = Staff(
-        username=payload.username,
-        password_hash=hash_password(payload.password),
-        created_by_superuser_id=superuser.id,
+    Same OTP-invite mechanism as admin/candidate invites (see
+    services/invite_service.py) rather than the superuser choosing a
+    username/password directly -- the invitee sets their own
+    credentials when they redeem it, same as everyone else on the
+    platform. organization_id is None since staff aren't scoped to any
+    one organization."""
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
+    invite, otp = create_invite(
+        db, email=payload.email, role="staff", organization_id=None,
+        invited_by_type="superuser", invited_by_id=superuser.id,
     )
-    db.add(staff)
-    db.commit()
-    db.refresh(staff)
-    return StaffResponse(id=staff.id, username=staff.username, is_active=staff.is_active)
+    try:
+        send_invite_email(payload.email, otp, "staff", None, settings.invite_expire_days)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=f"Invite created, but email failed to send: {e}")
+
+    return InviteStaffResponse(invited_email=payload.email, expires_at=invite.expires_at.isoformat())
 
 
 class StaffPerformance(BaseModel):
@@ -178,6 +182,90 @@ def staff_performance(db: Session = Depends(get_db)):
             )
         )
     return results
+
+
+class PendingInviteResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+    organization_name: str | None
+    invited_by_type: str
+    expires_at: str
+    used_at: str | None
+    attempts: int
+    max_attempts: int
+
+
+@router.get(
+    "/api/superuser/invites/pending",
+    response_model=list[PendingInviteResponse],
+    dependencies=[Depends(get_current_superuser)],
+)
+def list_pending_invites(db: Session = Depends(get_db)):
+    """Every not-yet-redeemed invite platform-wide (any role/org) --
+    lets you see who's been invited but hasn't signed up yet, and
+    whether their code has expired, without digging through the DB."""
+    from db.models import Invite
+
+    invites = db.query(Invite).filter(Invite.used_at.is_(None)).order_by(Invite.created_at.desc()).all()
+    results = []
+    for inv in invites:
+        org_name = None
+        if inv.organization_id:
+            org = db.query(Organization).filter_by(id=inv.organization_id).one_or_none()
+            org_name = org.name if org else None
+        results.append(
+            PendingInviteResponse(
+                id=inv.id,
+                email=inv.email,
+                role=inv.role,
+                organization_name=org_name,
+                invited_by_type=inv.invited_by_type,
+                expires_at=inv.expires_at.isoformat(),
+                used_at=inv.used_at.isoformat() if inv.used_at else None,
+                attempts=inv.attempts,
+                max_attempts=inv.max_attempts,
+            )
+        )
+    return results
+
+
+class PlatformSettingsResponse(BaseModel):
+    invite_expire_days: int
+
+
+class PlatformSettingsUpdate(BaseModel):
+    invite_expire_days: int
+
+
+@router.get(
+    "/api/superuser/settings",
+    response_model=PlatformSettingsResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def get_platform_settings(db: Session = Depends(get_db)):
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
+    db.commit()
+    return PlatformSettingsResponse(invite_expire_days=settings.invite_expire_days)
+
+
+@router.put(
+    "/api/superuser/settings",
+    response_model=PlatformSettingsResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def update_platform_settings(payload: PlatformSettingsUpdate, db: Session = Depends(get_db)):
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    if payload.invite_expire_days < 1:
+        raise HTTPException(status_code=422, detail="invite_expire_days must be at least 1.")
+
+    settings = get_or_create_platform_settings(db)
+    settings.invite_expire_days = payload.invite_expire_days
+    db.commit()
+    return PlatformSettingsResponse(invite_expire_days=settings.invite_expire_days)
 
 
 class CreateOrganizationRequest(BaseModel):
@@ -228,8 +316,11 @@ def create_organization(
         db, email=payload.admin_email, role="admin", organization_id=org.id,
         invited_by_type="superuser", invited_by_id=superuser.id,
     )
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
     try:
-        send_invite_email(payload.admin_email, otp, "admin", org_name)
+        send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=f"Organization created, but invite email failed to send: {e}")
 

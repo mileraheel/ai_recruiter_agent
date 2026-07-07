@@ -11,6 +11,7 @@ vi.mock("../api/client.js", async () => {
       login: vi.fn(),
       candidateLogin: vi.fn(),
       superuserLogin: vi.fn(),
+      staffLogin: vi.fn(),
       candidateSignup: vi.fn(),
     },
   };
@@ -19,7 +20,7 @@ vi.mock("../api/client.js", async () => {
 import { api, getRole, getToken } from "../api/client.js";
 
 function Probe() {
-  const { isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, logout } = useAuth();
+  const { isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, loginStaff, logout } = useAuth();
   return (
     <div>
       <span data-testid="authed">{String(isAuthed)}</span>
@@ -27,6 +28,7 @@ function Probe() {
       <button onClick={() => loginAdmin("admin1", "pw")}>login-admin</button>
       <button onClick={() => loginCandidate("c@x.com", "pw")}>login-candidate</button>
       <button onClick={() => loginSuperuser("root", "pw")}>login-super</button>
+      <button onClick={() => loginStaff("staffer", "pw")}>login-staff</button>
       <button onClick={() => logout()}>logout</button>
     </div>
   );
@@ -84,6 +86,17 @@ describe("AuthContext role handling", () => {
     await user.click(screen.getByText("login-super"));
 
     await waitFor(() => expect(screen.getByTestId("role").textContent).toBe("superuser"));
+  });
+
+  it("sets role='staff' after a successful staff login -- distinct from admin/superuser", async () => {
+    api.staffLogin.mockResolvedValue({ access_token: "staff-token-321" });
+    const user = userEvent.setup();
+    renderProbe();
+
+    await user.click(screen.getByText("login-staff"));
+
+    await waitFor(() => expect(screen.getByTestId("role").textContent).toBe("staff"));
+    expect(getRole()).toBe("staff");
   });
 
   it("clears role and token on logout", async () => {

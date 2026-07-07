@@ -68,9 +68,12 @@ class Invite(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String, index=True, nullable=False)
-    role: Mapped[str] = mapped_column(String, nullable=False)  # "admin" | "candidate"
-    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
-    invited_by_type: Mapped[str] = mapped_column(String, nullable=False)  # "staff" | "admin"
+    role: Mapped[str] = mapped_column(String, nullable=False)  # "admin" | "candidate" | "staff"
+    # Nullable because a staff invite has no organization at all --
+    # staff aren't scoped to one. Every admin/candidate invite still
+    # always sets this.
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey("organizations.id"))
+    invited_by_type: Mapped[str] = mapped_column(String, nullable=False)  # "staff" | "admin" | "superuser"
     invited_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     otp_hash: Mapped[str] = mapped_column(String, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -796,19 +799,30 @@ class FileWatchState(Base):
 
 class SuperUser(Base):
     """Platform-level account (you, the app's creator) -- sees across
-    every organization for reporting purposes. Deliberately minimal for
-    now: bootstrapped via CLI script only (same pattern as the original
-    AdminUser bootstrap), no self-signup, no invite system yet -- that's
-    still deferred. This table exists specifically to support read-only
-    cross-org reporting; it does not yet grant the ability to create
-    organizations/admins/candidates (that's the invite system, still to
-    come)."""
+    every organization for reporting purposes, and can onboard
+    organizations/staff directly. Bootstrapped via CLI script only (no
+    self-signup, by design -- platform-level trust)."""
     __tablename__ = "super_users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PlatformSettings(Base):
+    """Singleton row (always id=1) for platform-wide, superuser-editable
+    configuration that doesn't belong to any one organization -- start
+    with just invite expiry, but this is the natural home for any
+    future platform-level knob. Created lazily on first read/write (see
+    services/platform_settings_service.py::get_or_create_platform_settings)
+    rather than seeded by a migration, so it never needs a special
+    bootstrap step."""
+    __tablename__ = "platform_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    invite_expire_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class AdminUser(Base):
