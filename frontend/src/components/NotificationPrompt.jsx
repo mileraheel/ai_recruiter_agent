@@ -31,7 +31,7 @@ export default function NotificationPrompt() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-16 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 rounded-xl border border-black/10 bg-paper shadow-lg p-4 space-y-2 z-20">
+    <div className="fixed bottom-16 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 rounded-xl border border-ink/10 bg-paper shadow-lg p-4 space-y-2 z-20">
       <p className="text-sm font-medium">Get notified instantly</p>
       <p className="text-xs text-ink/60">
         Enable notifications so you know right away when something needs your approval — instead of an
@@ -39,10 +39,10 @@ export default function NotificationPrompt() {
       </p>
       {error && <p className="text-xs text-danger">{error}</p>}
       <div className="flex gap-2 pt-1">
-        <button onClick={handleEnable} className="flex-1 rounded-lg bg-ink text-paper text-xs font-medium py-2">
+        <button onClick={handleEnable} className="flex-1 btn btn-primary btn-small">
           Enable
         </button>
-        <button onClick={handleDismiss} className="flex-1 rounded-lg border border-black/15 text-xs font-medium py-2">
+        <button onClick={handleDismiss} className="flex-1 btn btn-ghost btn-small">
           Not now
         </button>
       </div>

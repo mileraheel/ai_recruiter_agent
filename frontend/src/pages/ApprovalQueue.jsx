@@ -6,13 +6,13 @@ const TIER_LABELS = {
   core: { label: "Core", cls: "bg-accentSoft text-accent" },
   component: { label: "Component", cls: "bg-accentSoft text-accent" },
   secondary: { label: "Secondary", cls: "bg-warnSoft text-warn" },
-  exposure: { label: "Exposure only", cls: "bg-black/5 text-ink/60" },
+  exposure: { label: "Exposure only", cls: "bg-ink/5 text-ink/60" },
 };
 
 const TIER_OPTIONS = ["core", "component", "secondary", "exposure"];
 
 function TierBadge({ tier }) {
-  const meta = TIER_LABELS[tier] || { label: tier, cls: "bg-black/5 text-ink/60" };
+  const meta = TIER_LABELS[tier] || { label: tier, cls: "bg-ink/5 text-ink/60" };
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>
       {meta.label}
@@ -39,7 +39,7 @@ function ApprovalCard({ item, onDecide }) {
   }
 
   return (
-    <div className="rounded-xl border border-black/10 p-4 space-y-3">
+    <div className="rounded-xl border border-ink/10 p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-medium">{item.skill_name}</p>
@@ -51,7 +51,7 @@ function ApprovalCard({ item, onDecide }) {
       </div>
 
       {item.source_bullet && (
-        <blockquote className="text-sm text-ink/70 border-l-2 border-black/10 pl-3 italic">
+        <blockquote className="text-sm text-ink/70 border-l-2 border-ink/10 pl-3 italic">
           "{item.source_bullet}"
         </blockquote>
       )}
@@ -66,7 +66,7 @@ function ApprovalCard({ item, onDecide }) {
         <select
           value={tierOverride}
           onChange={(e) => setTierOverride(e.target.value)}
-          className="rounded-md border border-black/15 text-xs px-2 py-1"
+          className="rounded-md border border-ink/15 text-xs px-2 py-1"
         >
           {TIER_OPTIONS.map((t) => (
             <option key={t} value={t}>
@@ -81,21 +81,21 @@ function ApprovalCard({ item, onDecide }) {
         placeholder="Review notes (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full rounded-md border border-black/15 px-2.5 py-1.5 text-xs"
+        className="w-full rounded-md border border-ink/15 px-2.5 py-1.5 text-xs"
       />
 
       <div className="flex gap-2 pt-1">
         <button
           disabled={busy}
           onClick={() => decide("approve")}
-          className="flex-1 rounded-lg bg-accent text-white text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-primary btn-small disabled:opacity-50"
         >
           Approve
         </button>
         <button
           disabled={busy}
           onClick={() => decide("reject")}
-          className="flex-1 rounded-lg bg-dangerSoft text-danger text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-small bg-dangerSoft text-danger disabled:opacity-50"
         >
           Reject
         </button>
@@ -143,7 +143,7 @@ export default function ApprovalQueue() {
       {items === null && !error && <p className="text-sm text-ink/50">Loading…</p>}
 
       {items !== null && items.length === 0 && (
-        <div className="rounded-xl border border-dashed border-black/15 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-ink/15 p-8 text-center">
           <p className="text-sm text-ink/50">Nothing pending. New skill suggestions will show up here.</p>
         </div>
       )}

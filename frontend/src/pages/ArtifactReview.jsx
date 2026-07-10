@@ -15,7 +15,7 @@ function ResumeApprovalCard({ item, onDecide }) {
   }
 
   return (
-    <div className="rounded-xl border border-black/10 p-4 space-y-2">
+    <div className="rounded-xl border border-ink/10 p-4 space-y-2">
       <p className="font-medium text-sm">{item.candidate_name}</p>
       <p className="text-xs text-ink/50">
         New resume uploaded — {item.new_skills_suggested} new skill{item.new_skills_suggested === 1 ? "" : "s"} detected
@@ -28,14 +28,14 @@ function ResumeApprovalCard({ item, onDecide }) {
         <button
           disabled={busy}
           onClick={() => decide("approve")}
-          className="flex-1 rounded-lg bg-accent text-white text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-primary btn-small disabled:opacity-50"
         >
           Approve
         </button>
         <button
           disabled={busy}
           onClick={() => decide("reject")}
-          className="flex-1 rounded-lg bg-dangerSoft text-danger text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-small bg-dangerSoft text-danger disabled:opacity-50"
         >
           Reject
         </button>
@@ -57,7 +57,7 @@ function DocumentCard({ doc, onDecide }) {
   }
 
   return (
-    <div className="rounded-xl border border-black/10 p-4 space-y-2">
+    <div className="rounded-xl border border-ink/10 p-4 space-y-2">
       <p className="font-medium text-sm">{doc.candidate_name}</p>
       <p className="text-xs text-ink/50">
         {doc.document_type} — {doc.file_name}
@@ -66,14 +66,14 @@ function DocumentCard({ doc, onDecide }) {
         <button
           disabled={busy}
           onClick={() => decide("approve")}
-          className="flex-1 rounded-lg bg-accent text-white text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-primary btn-small disabled:opacity-50"
         >
           Approve
         </button>
         <button
           disabled={busy}
           onClick={() => decide("reject")}
-          className="flex-1 rounded-lg bg-dangerSoft text-danger text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-small bg-dangerSoft text-danger disabled:opacity-50"
         >
           Reject
         </button>
@@ -131,7 +131,7 @@ export default function ArtifactReview() {
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
       {nothingPending && (
-        <div className="rounded-xl border border-dashed border-black/15 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-ink/15 p-8 text-center">
           <p className="text-sm text-ink/50">Nothing pending.</p>
         </div>
       )}

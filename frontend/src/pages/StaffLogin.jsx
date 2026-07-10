@@ -32,7 +32,7 @@ export default function StaffLogin() {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
             autoComplete="username"
-            className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
             required
           />
           <input
@@ -41,14 +41,14 @@ export default function StaffLogin() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoComplete="current-password"
-            className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
             required
           />
         </div>
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

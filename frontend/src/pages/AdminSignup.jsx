@@ -47,7 +47,7 @@ export default function AdminSignup() {
               type="text"
               value={organizationName}
               onChange={(e) => setOrganizationName(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               required
             />
           </div>
@@ -57,7 +57,7 @@ export default function AdminSignup() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               autoComplete="username"
               required
             />
@@ -68,7 +68,7 @@ export default function AdminSignup() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               autoComplete="new-password"
               minLength={10}
               required
@@ -79,7 +79,7 @@ export default function AdminSignup() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Creating…" : "Create organization"}
         </button>

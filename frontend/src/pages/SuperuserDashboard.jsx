@@ -5,7 +5,7 @@ import DataTable from "../components/DataTable";
 
 function StatCard({ label, value }) {
   return (
-    <div className="rounded-xl border border-black/10 p-4">
+    <div className="rounded-xl border border-ink/10 p-4">
       <p className="text-2xl font-semibold tracking-tight">{value}</p>
       <p className="text-xs text-ink/50 mt-0.5">{label}</p>
     </div>
@@ -17,7 +17,7 @@ function TabButton({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-        active ? "bg-ink text-paper" : "text-ink/60 hover:bg-black/5"
+        active ? "bg-ink text-paper" : "text-ink/60 hover:bg-ink/5"
       }`}
     >
       {children}
@@ -219,7 +219,7 @@ export default function SuperuserDashboard() {
         </button>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-black/10 pb-2">
+      <div className="flex items-center gap-1 border-b border-ink/10 pb-2">
         <TabButton active={tab === "manage"} onClick={() => setTab("manage")}>
           Manage
         </TabButton>
@@ -298,7 +298,7 @@ export default function SuperuserDashboard() {
         <div className="space-y-6">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Onboard an organization directly</h2>
-            <form onSubmit={handleCreateOrganization} className="rounded-xl border border-black/10 p-4 space-y-3">
+            <form onSubmit={handleCreateOrganization} className="rounded-xl border border-ink/10 p-4 space-y-3">
               <p className="text-sm font-medium">Create an organization or standalone candidate</p>
               <p className="text-xs text-ink/50">
                 You'll be recorded as the sales person for this account. Choose 'Individual' to onboard a
@@ -312,7 +312,7 @@ export default function SuperuserDashboard() {
                   onChange={(e) => setOrgName(e.target.value)}
                   placeholder="Organization name"
                   required
-                  className="rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
                 <input
                   type="email"
@@ -320,7 +320,7 @@ export default function SuperuserDashboard() {
                   onChange={(e) => setAdminEmail(e.target.value)}
                   placeholder="Admin/candidate email"
                   required
-                  className="rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
               </div>
               <div className="flex flex-wrap items-center gap-4">
@@ -329,7 +329,7 @@ export default function SuperuserDashboard() {
                   <select
                     value={accountType}
                     onChange={(e) => setAccountType(e.target.value)}
-                    className="rounded-lg border border-black/15 px-2 py-1.5 text-sm"
+                    className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
                   >
                     <option value="agency">Agency</option>
                     <option value="individual">Individual (standalone candidate)</option>
@@ -343,7 +343,7 @@ export default function SuperuserDashboard() {
                     value={trialDays}
                     onChange={(e) => setTrialDays(e.target.value)}
                     placeholder="e.g. 14"
-                    className="w-24 rounded-lg border border-black/15 px-2 py-1.5 text-sm"
+                    className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
                   />
                 </label>
                 <span className="text-xs text-ink/40">Leave blank for no trial expiry</span>
@@ -351,7 +351,7 @@ export default function SuperuserDashboard() {
               <button
                 type="submit"
                 disabled={creatingOrg}
-                className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className="btn btn-primary btn-small disabled:opacity-50"
               >
                 {creatingOrg ? "Creating…" : "Create & send invite"}
               </button>
@@ -362,7 +362,7 @@ export default function SuperuserDashboard() {
 
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Staff accounts</h2>
-            <form onSubmit={handleInviteStaff} className="rounded-xl border border-black/10 p-4 space-y-3">
+            <form onSubmit={handleInviteStaff} className="rounded-xl border border-ink/10 p-4 space-y-3">
               <p className="text-sm font-medium">Invite a staff member</p>
               <p className="text-xs text-ink/50">
                 Just their email — they'll receive an OTP code by email and choose their own
@@ -374,13 +374,13 @@ export default function SuperuserDashboard() {
                 onChange={(e) => setStaffEmail(e.target.value)}
                 placeholder="Email address"
                 required
-                className="w-full sm:w-80 rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="w-full sm:w-80 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
               <div>
                 <button
                   type="submit"
                   disabled={invitingStaff}
-                  className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  className="btn btn-primary btn-small disabled:opacity-50"
                 >
                   {invitingStaff ? "Sending…" : "Send invite"}
                 </button>
@@ -394,7 +394,7 @@ export default function SuperuserDashboard() {
 
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Platform settings</h2>
-            <form onSubmit={handleSaveSettings} className="rounded-xl border border-black/10 p-4 space-y-3">
+            <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-3">
               <p className="text-sm font-medium">Invite expiry</p>
               <p className="text-xs text-ink/50">
                 How long an OTP invite (staff, organization, or candidate) stays valid before it
@@ -409,13 +409,13 @@ export default function SuperuserDashboard() {
                   value={inviteExpireDays ?? ""}
                   onChange={(e) => setInviteExpireDays(e.target.value)}
                   placeholder="e.g. 7"
-                  className="w-24 rounded-lg border border-black/15 px-2 py-1.5 text-sm"
+                  className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
                 />
               </label>
               <button
                 type="submit"
                 disabled={savingSettings || inviteExpireDays === null}
-                className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className="btn btn-primary btn-small disabled:opacity-50"
               >
                 {savingSettings ? "Saving…" : "Save"}
               </button>

@@ -34,7 +34,7 @@ export default function CandidateLogin() {
               type="email"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
               autoComplete="username"
               required
             />
@@ -45,7 +45,7 @@ export default function CandidateLogin() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
               autoComplete="current-password"
               required
             />
@@ -55,7 +55,7 @@ export default function CandidateLogin() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

@@ -3,13 +3,13 @@ import { api } from "../api/client";
 
 const STATUS_META = {
   eligible: { label: "Eligible", cls: "bg-accentSoft text-accent" },
-  skipped: { label: "Skipped", cls: "bg-black/5 text-ink/50" },
+  skipped: { label: "Skipped", cls: "bg-ink/5 text-ink/50" },
   needs_human_review: { label: "Needs review", cls: "bg-warnSoft text-warn" },
-  not_active: { label: "Not active", cls: "bg-black/5 text-ink/40" },
+  not_active: { label: "Not active", cls: "bg-ink/5 text-ink/40" },
 };
 
 function StatusBadge({ status }) {
-  const meta = STATUS_META[status] || { label: status, cls: "bg-black/5" };
+  const meta = STATUS_META[status] || { label: status, cls: "bg-ink/5" };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
   );
@@ -20,7 +20,7 @@ function MatchCard({ result, selected, onToggle, sendStatus }) {
   const hasEmail = !!result.email_id;
 
   return (
-    <div className="rounded-xl border border-black/10 p-4 space-y-2">
+    <div className="rounded-xl border border-ink/10 p-4 space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
           {eligible && hasEmail && !sendStatus && (
@@ -49,7 +49,7 @@ function MatchCard({ result, selected, onToggle, sendStatus }) {
           )}
           <details className="pt-1">
             <summary className="cursor-pointer text-ink/50">Preview email</summary>
-            <pre className="whitespace-pre-wrap bg-black/5 rounded-lg p-2 mt-1 max-h-48 overflow-y-auto">
+            <pre className="whitespace-pre-wrap bg-ink/5 rounded-lg p-2 mt-1 max-h-48 overflow-y-auto">
               {result.body}
             </pre>
           </details>
@@ -147,13 +147,13 @@ export default function PostJob() {
           onChange={(e) => setJobText(e.target.value)}
           rows={10}
           required
-          className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm font-mono"
+          className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm font-mono"
           placeholder="Paste the full job posting here…"
         />
         <button
           type="submit"
           disabled={posting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {posting ? "Matching against all candidates…" : "Post & match"}
         </button>
@@ -172,7 +172,7 @@ export default function PostJob() {
               <button
                 onClick={handleBatchSend}
                 disabled={sending}
-                className="rounded-lg bg-accent text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className="btn btn-primary btn-small disabled:opacity-50"
               >
                 {sending ? "Sending…" : `Send ${selected.size} selected`}
               </button>

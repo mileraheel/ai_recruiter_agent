@@ -26,7 +26,7 @@ function SubmissionCard({ submission, onDecide }) {
   }
 
   return (
-    <div className="rounded-xl border border-black/10 p-4 space-y-3">
+    <div className="rounded-xl border border-ink/10 p-4 space-y-3">
       <div>
         <p className="font-medium">{p.full_name}</p>
         <p className="text-xs text-ink/50">{p.email} · {p.location}</p>
@@ -42,7 +42,7 @@ function SubmissionCard({ submission, onDecide }) {
       </div>
 
       {p.tech_stack_summary && (
-        <p className="text-xs text-ink/70 border-l-2 border-black/10 pl-3 italic">{p.tech_stack_summary}</p>
+        <p className="text-xs text-ink/70 border-l-2 border-ink/10 pl-3 italic">{p.tech_stack_summary}</p>
       )}
 
       <input
@@ -50,21 +50,21 @@ function SubmissionCard({ submission, onDecide }) {
         placeholder="Review notes (optional)"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="w-full rounded-md border border-black/15 px-2.5 py-1.5 text-xs"
+        className="w-full rounded-md border border-ink/15 px-2.5 py-1.5 text-xs"
       />
 
       <div className="flex gap-2">
         <button
           disabled={busy}
           onClick={() => decide("approve")}
-          className="flex-1 rounded-lg bg-accent text-white text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-primary btn-small disabled:opacity-50"
         >
           Approve
         </button>
         <button
           disabled={busy}
           onClick={() => decide("reject")}
-          className="flex-1 rounded-lg bg-dangerSoft text-danger text-sm font-medium py-2 disabled:opacity-50"
+          className="flex-1 btn btn-small bg-dangerSoft text-danger disabled:opacity-50"
         >
           Reject
         </button>
@@ -110,7 +110,7 @@ export default function CandidateSubmissions() {
       {submissions === null && !error && <p className="text-sm text-ink/50">Loading…</p>}
 
       {submissions !== null && submissions.length === 0 && (
-        <div className="rounded-xl border border-dashed border-black/15 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-ink/15 p-8 text-center">
           <p className="text-sm text-ink/50">No pending submissions.</p>
         </div>
       )}

@@ -9,3 +9,40 @@ html, body, #root {
 body {
   -webkit-font-smoothing: antialiased;
 }
+
+@layer base {
+  h1, h2, h3 {
+    font-family: theme(fontFamily.display);
+    font-weight: 700;
+    line-height: 1.02;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-sans font-semibold text-[15px] rounded px-[22px] py-[13px] border-[1.5px] border-transparent transition-[transform,background,border-color] duration-150 ease-out cursor-pointer;
+  }
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  .btn:focus-visible {
+    outline: 3px solid theme(colors.amber);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    @apply bg-accent text-ink;
+  }
+  .btn-primary:hover {
+    background: #2be0c6;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-ink border-ink/10;
+  }
+  .btn-ghost:hover {
+    @apply border-ink;
+  }
+  .btn-small {
+    @apply px-4 py-[9px] text-sm;
+  }
+}

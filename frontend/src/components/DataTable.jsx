@@ -92,10 +92,10 @@ export default function DataTable({
   const hasAnyFilterableColumn = columns.some((c) => c.filterValue);
 
   return (
-    <div className="rounded-xl border border-black/10 overflow-hidden">
+    <div className="rounded-xl border border-ink/10 overflow-hidden">
       <div className="overflow-auto" style={{ maxHeight }}>
         <table className="w-full text-sm">
-          <thead className="bg-black/5 text-left text-xs text-ink/50 sticky top-0 z-10">
+          <thead className="bg-ink/5 text-left text-xs text-ink/50 sticky top-0 z-10">
             <tr>
               {columns.map((col) => (
                 <th key={col.key} className="px-3 py-2 font-medium select-none">
@@ -122,7 +122,7 @@ export default function DataTable({
                         onChange={(e) => setFilters((f) => ({ ...f, [col.key]: e.target.value }))}
                         placeholder="Search…"
                         aria-label={`Filter ${col.label}`}
-                        className="w-full rounded-md border border-black/10 px-2 py-1 text-xs font-normal focus:outline-none focus:ring-1 focus:ring-accent/40"
+                        className="w-full rounded-md border border-ink/10 px-2 py-1 text-xs font-normal focus:outline-none focus:ring-1 focus:ring-accent/40"
                       />
                     )}
                   </th>
@@ -138,7 +138,7 @@ export default function DataTable({
                 <Fragment key={key}>
                   <tr
                     onClick={expandedContent ? () => setExpandedKey(isExpanded ? null : key) : undefined}
-                    className={`border-t border-black/10 ${expandedContent ? "cursor-pointer hover:bg-black/[0.02]" : ""}`}
+                    className={`border-t border-ink/10 ${expandedContent ? "cursor-pointer hover:bg-ink/[0.02]" : ""}`}
                   >
                     {columns.map((col) => (
                       <td key={col.key} className="px-3 py-2">
@@ -147,7 +147,7 @@ export default function DataTable({
                     ))}
                   </tr>
                   {isExpanded && (
-                    <tr className="border-t border-black/10 bg-black/[0.015]">
+                    <tr className="border-t border-ink/10 bg-ink/[0.015]">
                       <td colSpan={columns.length} className="px-3 py-3">
                         {expandedContent(row)}
                       </td>

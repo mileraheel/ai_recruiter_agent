@@ -30,7 +30,7 @@ export default function SuperuserLogin() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
-            className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+            className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
             required
           />
           <input
@@ -38,14 +38,14 @@ export default function SuperuserLogin() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+            className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
             required
           />
         </div>
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

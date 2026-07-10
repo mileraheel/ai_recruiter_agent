@@ -5,12 +5,12 @@ import { useAuth } from "../context/AuthContext";
 import TrialBanner from "../components/TrialBanner";
 
 const STAGE_STYLES = {
-  contacted: "bg-black/5 text-ink/60",
+  contacted: "bg-ink/5 text-ink/60",
   client_submitted: "bg-warnSoft text-warn",
   interviewing: "bg-accentSoft text-accent",
   offer: "bg-accentSoft text-accent",
   rejected: "bg-dangerSoft text-danger",
-  withdrawn: "bg-black/5 text-ink/40",
+  withdrawn: "bg-ink/5 text-ink/40",
 };
 
 const STAGE_LABELS = {
@@ -88,7 +88,7 @@ export default function MyApplications() {
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
       {/* Upcoming interviews */}
-      <div className="rounded-xl border border-black/10 p-4 space-y-3">
+      <div className="rounded-xl border border-ink/10 p-4 space-y-3">
         <h2 className="text-sm font-semibold">Upcoming interviews</h2>
         {upcoming === null && <p className="text-xs text-ink/40">Loading…</p>}
         {upcoming?.length === 0 && <p className="text-xs text-ink/40">Nothing scheduled right now.</p>}
@@ -108,7 +108,7 @@ export default function MyApplications() {
           <p className="text-xs text-ink/40 px-1">No applications submitted yet.</p>
         )}
         {applications?.map((app) => (
-          <div key={app.email_id} className="rounded-xl border border-black/10 p-4 space-y-2">
+          <div key={app.email_id} className="rounded-xl border border-ink/10 p-4 space-y-2">
             <button
               onClick={() => toggleExpand(app.email_id)}
               className="w-full flex items-center justify-between gap-3 text-left"
@@ -119,7 +119,7 @@ export default function MyApplications() {
               </div>
               <span
                 className={`shrink-0 text-xs rounded-full px-2 py-0.5 font-medium ${
-                  STAGE_STYLES[app.pipeline_stage] || "bg-black/5 text-ink/50"
+                  STAGE_STYLES[app.pipeline_stage] || "bg-ink/5 text-ink/50"
                 }`}
               >
                 {STAGE_LABELS[app.pipeline_stage] || "Prepared"}
@@ -134,7 +134,7 @@ export default function MyApplications() {
             )}
 
             {expandedId === app.email_id && (
-              <div className="pt-2 border-t border-black/10 space-y-2">
+              <div className="pt-2 border-t border-ink/10 space-y-2">
                 {detail === null && <p className="text-xs text-ink/40">Loading details…</p>}
                 {detail && (
                   <>

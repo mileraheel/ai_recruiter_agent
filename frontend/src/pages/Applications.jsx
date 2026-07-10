@@ -3,18 +3,18 @@ import { api } from "../api/client";
 import DataTable from "../components/DataTable";
 
 const STAGE_META = {
-  contacted: { label: "Contacted", cls: "bg-black/5 text-ink/60" },
+  contacted: { label: "Contacted", cls: "bg-ink/5 text-ink/60" },
   client_submitted: { label: "Submitted to client", cls: "bg-warnSoft text-warn" },
   interviewing: { label: "Interviewing", cls: "bg-accentSoft text-accent" },
   offer: { label: "Offer", cls: "bg-accentSoft text-accent" },
   rejected: { label: "Rejected", cls: "bg-dangerSoft text-danger" },
-  withdrawn: { label: "Withdrawn", cls: "bg-black/5 text-ink/40" },
+  withdrawn: { label: "Withdrawn", cls: "bg-ink/5 text-ink/40" },
 };
 const STAGE_OPTIONS = ["contacted", "client_submitted", "interviewing", "offer", "rejected", "withdrawn"];
 
 function StageBadge({ stage }) {
   if (!stage) return <span className="text-xs text-ink/40">No stage set</span>;
-  const meta = STAGE_META[stage] || { label: stage, cls: "bg-black/5" };
+  const meta = STAGE_META[stage] || { label: stage, cls: "bg-ink/5" };
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>;
 }
 
@@ -72,7 +72,7 @@ function ApplicationDetail({ emailId }) {
 
       <details>
         <summary className="cursor-pointer text-xs text-ink/50">View email body</summary>
-        <pre className="whitespace-pre-wrap bg-black/5 rounded-lg p-3 mt-1 max-h-56 overflow-y-auto text-xs">
+        <pre className="whitespace-pre-wrap bg-ink/5 rounded-lg p-3 mt-1 max-h-56 overflow-y-auto text-xs">
           {detail.body}
         </pre>
       </details>
@@ -82,7 +82,7 @@ function ApplicationDetail({ emailId }) {
         <select
           value={stage}
           onChange={(e) => setStage(e.target.value)}
-          className="rounded-lg border border-black/15 px-3 py-2 text-sm"
+          className="rounded-lg border border-ink/15 px-3 py-2 text-sm"
         >
           <option value="">— not set —</option>
           {STAGE_OPTIONS.map((s) => (
@@ -96,12 +96,12 @@ function ApplicationDetail({ emailId }) {
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes (e.g. recruiter feedback, submission details)"
           rows={2}
-          className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
         />
         <button
           onClick={handleSaveStage}
           disabled={saving}
-          className="rounded-lg bg-ink text-paper px-4 py-2 text-xs font-medium disabled:opacity-50"
+          className="btn btn-primary btn-small disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -112,7 +112,7 @@ function ApplicationDetail({ emailId }) {
         {detail.interviews.length === 0 && <p className="text-xs text-ink/40">None logged yet.</p>}
         <div className="space-y-1.5">
           {detail.interviews.map((iv) => (
-            <div key={iv.id} className="flex items-center justify-between text-xs bg-black/5 rounded-lg px-3 py-2">
+            <div key={iv.id} className="flex items-center justify-between text-xs bg-ink/5 rounded-lg px-3 py-2">
               <span>{iv.round_name || "Interview"}</span>
               <span className="text-ink/50">{iv.status}</span>
             </div>
@@ -124,12 +124,12 @@ function ApplicationDetail({ emailId }) {
             value={roundName}
             onChange={(e) => setRoundName(e.target.value)}
             placeholder="e.g. Phone Screen, Technical, Final"
-            className="flex-1 rounded-lg border border-black/15 px-3 py-2 text-xs"
+            className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-xs"
           />
           <button
             onClick={handleAddInterview}
             disabled={addingInterview || !roundName.trim()}
-            className="rounded-lg border border-black/15 px-3 py-2 text-xs font-medium disabled:opacity-50"
+            className="btn btn-ghost btn-small disabled:opacity-50"
           >
             Add
           </button>
@@ -212,7 +212,7 @@ export default function Applications() {
             ["Offers", summary.total_offers],
             ["Rejected", summary.total_rejected],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-black/10 p-2 text-center">
+            <div key={label} className="rounded-lg border border-ink/10 p-2 text-center">
               <p className="text-lg font-semibold">{value}</p>
               <p className="text-[10px] text-ink/50">{label}</p>
             </div>

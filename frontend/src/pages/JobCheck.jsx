@@ -59,7 +59,7 @@ export default function JobCheck() {
           <select
             value={candidateSlug}
             onChange={(e) => setCandidateSlug(e.target.value)}
-            className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+            className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
           >
             {candidates.map((c) => (
               <option key={c.slug} value={c.slug}>
@@ -71,7 +71,7 @@ export default function JobCheck() {
 
         <div>
           <label className="block text-xs font-medium text-ink/60 mb-1">Input method</label>
-          <div className="flex rounded-lg border border-black/15 p-1 text-xs font-medium">
+          <div className="flex rounded-lg border border-ink/15 p-1 text-xs font-medium">
             <button
               type="button"
               onClick={() => setMode("paste")}
@@ -97,7 +97,7 @@ export default function JobCheck() {
               onChange={(e) => setJobText(e.target.value)}
               rows={10}
               required
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm font-mono"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm font-mono"
               placeholder="Paste the full job posting here…"
             />
           </div>
@@ -117,7 +117,7 @@ export default function JobCheck() {
         <button
           type="submit"
           disabled={submitting || !candidateSlug || (mode === "screenshot" && !screenshot)}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Checking…" : "Check eligibility"}
         </button>
@@ -126,10 +126,10 @@ export default function JobCheck() {
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
       {result && (
-        <div className="rounded-xl border border-black/10 p-4 space-y-2">
+        <div className="rounded-xl border border-ink/10 p-4 space-y-2">
           <span
             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-              STATUS_STYLES[result.status] || "bg-black/5"
+              STATUS_STYLES[result.status] || "bg-ink/5"
             }`}
           >
             {result.status.replace(/_/g, " ")}

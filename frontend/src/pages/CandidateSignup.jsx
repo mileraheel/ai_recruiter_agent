@@ -39,7 +39,7 @@ export default function CandidateSignup() {
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               required
             />
           </div>
@@ -50,7 +50,7 @@ export default function CandidateSignup() {
               value={organizationName}
               onChange={(e) => setOrganizationName(e.target.value)}
               placeholder="Exact name your recruiter registered under"
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               required
             />
           </div>
@@ -60,7 +60,7 @@ export default function CandidateSignup() {
               type="email"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               autoComplete="username"
               required
             />
@@ -71,7 +71,7 @@ export default function CandidateSignup() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
               autoComplete="new-password"
               minLength={10}
               required
@@ -82,7 +82,7 @@ export default function CandidateSignup() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Creating account…" : "Create account"}
         </button>

@@ -130,7 +130,7 @@ export default function StaffDashboard() {
         </button>
       </div>
 
-      <form onSubmit={handleInvite} className="rounded-xl border border-black/10 p-4 space-y-3">
+      <form onSubmit={handleInvite} className="rounded-xl border border-ink/10 p-4 space-y-3">
         <p className="text-sm font-medium">Onboard a new organization</p>
         <div className="grid sm:grid-cols-2 gap-3">
           <input
@@ -139,7 +139,7 @@ export default function StaffDashboard() {
             onChange={(e) => setOrgName(e.target.value)}
             placeholder="Organization name"
             required
-            className="rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
           <input
             type="email"
@@ -147,7 +147,7 @@ export default function StaffDashboard() {
             onChange={(e) => setAdminEmail(e.target.value)}
             placeholder="First admin's email"
             required
-            className="rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
         </div>
         <label className="flex items-center gap-2 text-sm text-ink/70">
@@ -155,7 +155,7 @@ export default function StaffDashboard() {
           <select
             value={accountType}
             onChange={(e) => setAccountType(e.target.value)}
-            className="rounded-lg border border-black/15 px-2 py-1.5 text-sm"
+            className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
           >
             <option value="agency">Agency (staffing company with a bench of candidates)</option>
             <option value="individual">Individual (one person, self-managed)</option>
@@ -169,14 +169,14 @@ export default function StaffDashboard() {
             value={trialDays}
             onChange={(e) => setTrialDays(e.target.value)}
             placeholder="e.g. 14"
-            className="w-24 rounded-lg border border-black/15 px-2 py-1.5 text-sm"
+            className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
           />
           <span className="text-xs text-ink/40">Leave blank for no trial expiry</span>
         </label>
         <button
           type="submit"
           disabled={inviting}
-          className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+          className="btn btn-primary btn-small disabled:opacity-50"
         >
           {inviting ? "Creating…" : "Create organization & send invite"}
         </button>

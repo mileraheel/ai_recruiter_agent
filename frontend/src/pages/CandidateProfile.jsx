@@ -6,7 +6,7 @@ import NotificationPrompt from "../components/NotificationPrompt";
 import TrialBanner from "../components/TrialBanner";
 
 const STATUS_STYLES = {
-  no_account: "bg-black/5 text-ink/60",
+  no_account: "bg-ink/5 text-ink/60",
   pending: "bg-warnSoft text-warn",
   approved: "bg-accentSoft text-accent",
   rejected: "bg-dangerSoft text-danger",
@@ -57,7 +57,7 @@ function TextField({ label, value, onChange, type = "text", required = false, pl
         onChange={(e) => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+        className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
       />
     </div>
   );
@@ -188,7 +188,7 @@ export default function CandidateProfile() {
       </span>
 
       {/* Resume upload */}
-      <div className="rounded-xl border border-black/10 p-4 space-y-3">
+      <div className="rounded-xl border border-ink/10 p-4 space-y-3">
         <h2 className="text-sm font-semibold">Resume</h2>
         <p className="text-xs text-ink/50">
           Upload a .docx resume. Skills detected in it are queued for admin approval before they're
@@ -203,7 +203,7 @@ export default function CandidateProfile() {
         <button
           onClick={handleResumeUpload}
           disabled={!resumeFile || uploadingResume}
-          className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+          className="btn btn-primary btn-small disabled:opacity-50"
         >
           {uploadingResume ? "Uploading…" : "Upload resume"}
         </button>
@@ -211,7 +211,7 @@ export default function CandidateProfile() {
       </div>
 
       {/* Gmail connection */}
-      <div className="rounded-xl border border-black/10 p-4 space-y-3">
+      <div className="rounded-xl border border-ink/10 p-4 space-y-3">
         <h2 className="text-sm font-semibold">Email account</h2>
         <p className="text-xs text-ink/50">
           Connecting Gmail lets the app read recruiter emails about your applications, draft/send
@@ -235,7 +235,7 @@ export default function CandidateProfile() {
           <button
             onClick={handleConnectGmail}
             disabled={connecting}
-            className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="btn btn-primary btn-small disabled:opacity-50"
           >
             {connecting ? "Redirecting…" : "Connect Gmail"}
           </button>
@@ -244,7 +244,7 @@ export default function CandidateProfile() {
 
       {/* Profile form */}
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="rounded-xl border border-black/10 p-4 space-y-3">
+        <div className="rounded-xl border border-ink/10 p-4 space-y-3">
           <h2 className="text-sm font-semibold">Personal</h2>
           <TextField label="Full legal name" value={form.full_name} onChange={(v) => set("full_name", v)} required />
           <TextField label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} required />
@@ -254,7 +254,7 @@ export default function CandidateProfile() {
           <CheckField label="Open to relocation" checked={form.open_to_relocation} onChange={(v) => set("open_to_relocation", v)} />
         </div>
 
-        <div className="rounded-xl border border-black/10 p-4 space-y-3">
+        <div className="rounded-xl border border-ink/10 p-4 space-y-3">
           <h2 className="text-sm font-semibold">Work authorization & engagement</h2>
           <TextField label="Work authorization (e.g. H1B, GC, USC)" value={form.work_authorization} onChange={(v) => set("work_authorization", v)} required />
           <CheckField label="Requires sponsorship/transfer" checked={form.requires_sponsorship_or_transfer} onChange={(v) => set("requires_sponsorship_or_transfer", v)} />
@@ -269,7 +269,7 @@ export default function CandidateProfile() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-black/10 p-4 space-y-3">
+        <div className="rounded-xl border border-ink/10 p-4 space-y-3">
           <h2 className="text-sm font-semibold">Availability & clearance</h2>
           <div className="grid grid-cols-2 gap-2">
             <CheckField label="Remote" checked={form.willing_to_work_remote} onChange={(v) => set("willing_to_work_remote", v)} />
@@ -280,7 +280,7 @@ export default function CandidateProfile() {
           <CheckField label="Public trust available" checked={form.public_trust_available} onChange={(v) => set("public_trust_available", v)} />
         </div>
 
-        <div className="rounded-xl border border-black/10 p-4 space-y-3">
+        <div className="rounded-xl border border-ink/10 p-4 space-y-3">
           <h2 className="text-sm font-semibold">Narrative (used in outreach emails & resume summary)</h2>
           <div>
             <label className="block text-xs font-medium text-ink/60 mb-1">Tech stack summary</label>
@@ -288,7 +288,7 @@ export default function CandidateProfile() {
               value={form.tech_stack_summary || ""}
               onChange={(e) => set("tech_stack_summary", e.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
             />
           </div>
           <div>
@@ -297,7 +297,7 @@ export default function CandidateProfile() {
               value={form.closing_statement || ""}
               onChange={(e) => set("closing_statement", e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-black/15 px-3 py-2.5 text-sm"
+              className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm"
             />
           </div>
         </div>
@@ -308,7 +308,7 @@ export default function CandidateProfile() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg bg-ink text-paper py-2.5 text-sm font-medium disabled:opacity-50"
+          className="w-full btn btn-primary disabled:opacity-50"
         >
           {submitting ? "Submitting…" : "Submit for approval"}
         </button>

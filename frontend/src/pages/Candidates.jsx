@@ -137,7 +137,7 @@ export default function Candidates() {
         </div>
       </div>
 
-      <form onSubmit={handleInvite} className="rounded-xl border border-black/10 p-4 space-y-3">
+      <form onSubmit={handleInvite} className="rounded-xl border border-ink/10 p-4 space-y-3">
         <p className="text-sm font-medium">Invite a candidate</p>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
@@ -146,12 +146,12 @@ export default function Candidates() {
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="candidate@email.com"
             required
-            className="flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+            className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
           <button
             type="submit"
             disabled={inviting}
-            className="rounded-lg bg-ink text-paper px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="btn btn-primary btn-small disabled:opacity-50"
           >
             {inviting ? "Sending…" : "Send invite"}
           </button>
@@ -165,7 +165,7 @@ export default function Candidates() {
       <button
         onClick={handleCheckNow}
         disabled={checking}
-        className="rounded-lg border border-black/15 px-3 py-2 text-sm font-medium disabled:opacity-50"
+        className="btn btn-ghost btn-small disabled:opacity-50"
       >
         {checking ? "Checking…" : "Check for updates"}
       </button>

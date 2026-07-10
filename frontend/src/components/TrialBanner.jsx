@@ -75,14 +75,14 @@ export default function TrialBanner() {
     <div
       role="status"
       className={`fixed top-0 left-0 right-0 z-30 flex items-center justify-center gap-3 px-4 py-2.5 text-sm font-medium text-center ${
-        urgent ? "bg-danger text-paper" : "bg-warn text-paper"
+        urgent ? "bg-danger text-paper" : "bg-amber text-ink"
       }`}
     >
       <span>{message} Please contact your sales person to renew.</span>
       <button
         onClick={() => setVisible(false)}
         aria-label="Dismiss"
-        className="shrink-0 rounded-full w-5 h-5 flex items-center justify-center hover:bg-black/10"
+        className="shrink-0 rounded-full w-5 h-5 flex items-center justify-center hover:bg-ink/10"
       >
         ×
       </button>
