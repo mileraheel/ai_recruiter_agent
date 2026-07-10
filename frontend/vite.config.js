@@ -41,6 +41,12 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true, // listen on 0.0.0.0 so devices on the same WiFi (e.g. your phone) can reach it
       port: 5173,
+      // Vite rejects requests whose Host header isn't recognized (DNS-rebinding
+      // protection), which otherwise blocks every request coming through the
+      // public ngrok tunnel. This is the reserved domain rolepace.com's "Log in"
+      // link points at -- see rolepace-site's index.html and this app's README
+      // for the full tunnel setup. Update here if the reserved domain changes.
+      allowedHosts: ["chlorine-patient-marshy.ngrok-free.dev"],
       proxy: {
         "/api": {
           target: "http://localhost:8000",
