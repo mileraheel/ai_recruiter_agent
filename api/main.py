@@ -28,11 +28,11 @@ from fastapi.responses import JSONResponse
 
 from api.routers import (
     auth, candidates, approval_queue, jobs, resumes,
-    candidate_auth, candidate_self, candidate_review, candidate_email_account,
+    candidate_auth, candidate_self, candidate_review, email_account,
     applications, job_posting, reports, superuser,
     invite, staff_auth, staff, candidate_config,
     candidate_documents, candidate_artifact_review, organization_settings, dashboard,
-    push,
+    push, admin_self,
 )
 from config.app_info import APP_NAME
 from db.session import get_session_factory
@@ -85,7 +85,7 @@ app.include_router(resumes.router)
 app.include_router(candidate_auth.router)
 app.include_router(candidate_self.router)
 app.include_router(candidate_review.router)
-app.include_router(candidate_email_account.router)
+app.include_router(email_account.router)
 app.include_router(applications.router)
 app.include_router(job_posting.router)
 app.include_router(reports.router)
@@ -99,6 +99,7 @@ app.include_router(candidate_artifact_review.router)
 app.include_router(organization_settings.router)
 app.include_router(dashboard.router)
 app.include_router(push.router)
+app.include_router(admin_self.router)
 
 
 @app.get("/api/health")

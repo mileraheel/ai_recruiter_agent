@@ -148,7 +148,18 @@ def clear_organizations(session: Session, org_ids: list[int], dry_run: bool = Fa
             "candidate_profile_submissions",
             delete(CandidateProfileSubmission).where(CandidateProfileSubmission.candidate_id.in_(candidate_ids or [-1])),
         ),
-        ("email_account_credentials", delete(EmailAccountCredential).where(EmailAccountCredential.candidate_id.in_(candidate_ids or [-1]))),
+        (
+            "email_account_credentials (candidate)",
+            delete(EmailAccountCredential).where(
+                (EmailAccountCredential.owner_type == "candidate") & (EmailAccountCredential.owner_id.in_(candidate_ids or [-1]))
+            ),
+        ),
+        (
+            "email_account_credentials (admin)",
+            delete(EmailAccountCredential).where(
+                (EmailAccountCredential.owner_type == "admin") & (EmailAccountCredential.owner_id.in_(admin_ids or [-1]))
+            ),
+        ),
         (
             "push_subscriptions (candidate)",
             delete(PushSubscription).where(

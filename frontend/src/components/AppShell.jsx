@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/candidate-submissions", label: "Profiles", icon: "◈" },
   { to: "/candidates", label: "Candidates", icon: "☰" },
   { to: "/job-check", label: "Quick Check", icon: "?" },
+  { to: "/admin/profile", label: "Profile", icon: "⚙" },
 ];
 
 function NavLinkItem({ to, label, icon, mobile }) {

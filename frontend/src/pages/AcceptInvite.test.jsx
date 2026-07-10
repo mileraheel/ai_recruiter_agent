@@ -10,7 +10,12 @@ vi.mock("react-router-dom", async () => {
 });
 
 vi.mock("../api/client.js", () => ({
-  api: { redeemInvite: vi.fn() },
+  api: {
+    redeemInvite: vi.fn(),
+    getEmailAccountStatus: vi.fn().mockResolvedValue({ connected: false }),
+    getEmailConnectUrl: vi.fn(),
+    disconnectEmailAccount: vi.fn(),
+  },
   decodeJwtRole: vi.fn(),
 }));
 
@@ -74,7 +79,7 @@ describe("AcceptInvite", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/staff/dashboard");
   });
 
-  it("navigates to the candidate profile when the redeemed invite's role is candidate", async () => {
+  it("shows the connect-email step, then navigates to the candidate profile, when the redeemed invite's role is candidate", async () => {
     api.redeemInvite.mockResolvedValue({ access_token: "tok-cand-1" });
     decodeJwtRole.mockReturnValue("candidate");
     const user = userEvent.setup();
@@ -86,7 +91,13 @@ describe("AcceptInvite", () => {
     await user.type(screen.getByLabelText(/full name/i), "Jane Candidate");
     await user.click(screen.getByRole("button", { name: /set password/i }));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/candidate/profile"));
+    // Candidate/admin roles land on the "connect your email" step first,
+    // rather than navigating immediately.
+    await waitFor(() => expect(screen.getByText("Almost done")).toBeInTheDocument());
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/candidate/profile");
   });
 
   it("shows the server error message on a wrong OTP", async () => {

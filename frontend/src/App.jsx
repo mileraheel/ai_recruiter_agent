@@ -19,6 +19,7 @@ import Applications from "./pages/Applications";
 import ArtifactReview from "./pages/ArtifactReview";
 import SuperuserDashboard from "./pages/SuperuserDashboard";
 import StaffDashboard from "./pages/StaffDashboard";
+import AdminProfile from "./pages/AdminProfile";
 
 function ProtectedRoute({ role, children }) {
   const { isAuthed, role: currentRole } = useAuth();
@@ -89,6 +90,7 @@ function AppRoutes() {
         <Route path="/candidates" element={<Candidates />} />
         <Route path="/job-check" element={<JobCheck />} />
         <Route path="/candidate-submissions" element={<CandidateSubmissions />} />
+        <Route path="/admin/profile" element={<AdminProfile />} />
         <Route path="/" element={<Navigate to="/post-job" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/post-job" replace />} />

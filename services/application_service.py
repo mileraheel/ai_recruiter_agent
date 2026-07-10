@@ -144,7 +144,7 @@ def send_prepared_email(db: Session, storage: Storage, email_id: int) -> SendRes
 
     cred = (
         db.query(EmailAccountCredential)
-        .filter_by(candidate_id=candidate_row.id, provider="gmail", status="connected")
+        .filter_by(owner_type="candidate", owner_id=candidate_row.id, provider="gmail", status="connected")
         .one_or_none()
     )
     if cred is None:

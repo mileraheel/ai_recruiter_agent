@@ -172,6 +172,25 @@ class CandidateMeResponse(BaseModel):
     latest_submission_status: str | None
 
 
+class AdminMeResponse(BaseModel):
+    id: int
+    username: str
+    full_name: str | None
+    email: str | None
+
+
+class AdminProfileUpdateRequest(BaseModel):
+    """username is deliberately absent -- it's the immutable account
+    identifier, never editable via self-service."""
+    full_name: str | None = None
+    email: EmailStr | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class CandidateProfileSubmissionResponse(BaseModel):
     id: int
     candidate_id: int

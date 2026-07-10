@@ -175,6 +175,12 @@ export const api = {
     }
     return res.json();
   },
+  changeMyPassword: (payload) => request("/me/password", { method: "PUT", body: payload }),
+
+  // Admin self-service (own profile -- distinct from admin managing candidates)
+  getAdminMe: () => request("/admin/me"),
+  updateAdminProfile: (payload) => request("/admin/me", { method: "PUT", body: payload }),
+  changeAdminPassword: (payload) => request("/admin/me/password", { method: "PUT", body: payload }),
 
   // Admin review of candidate profile submissions
   listCandidateSubmissions: () => request("/candidate-review?limit=100").then((r) => r.items),

@@ -26,6 +26,7 @@ class AdminSignupRequest(BaseModel):
     password: str
     organization_name: str
     email: EmailStr | None = None  # optional but strongly recommended -- required for self-service password reset
+    full_name: str | None = None
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -64,7 +65,7 @@ def signup(payload: AdminSignupRequest, db: Session = Depends(get_db)):
 
     admin = AdminUser(
         organization_id=org.id, username=payload.username, email=payload.email,
-        password_hash=hash_password(payload.password),
+        full_name=payload.full_name, password_hash=hash_password(payload.password),
     )
     db.add(admin)
     db.commit()

@@ -5,12 +5,14 @@ import hashlib
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from api.auth import hash_password, verify_password
 from api.deps import get_app_storage, get_current_candidate, get_db
 from api.schemas import (
     ApplicationDetail,
     ApplicationSummary,
     CandidateMeResponse,
     CandidateProfileSubmissionResponse,
+    ChangePasswordRequest,
     InterviewResponse,
     PaginatedResponse,
     SelfServiceCandidateProfile,
@@ -80,6 +82,23 @@ def submit_profile(
     db.commit()
     db.refresh(submission)
     return submission
+
+
+@router.put("/password")
+def change_password(
+    payload: ChangePasswordRequest,
+    candidate: Candidate = Depends(get_current_candidate),
+    db: Session = Depends(get_db),
+):
+    if not candidate.password_hash:
+        raise HTTPException(status_code=422, detail="This candidate has no self-service login to change a password for.")
+    if not verify_password(payload.current_password, candidate.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    if len(payload.new_password) < 10:
+        raise HTTPException(status_code=422, detail="Password must be at least 10 characters.")
+    candidate.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password updated."}
 
 
 @router.post("/resume")

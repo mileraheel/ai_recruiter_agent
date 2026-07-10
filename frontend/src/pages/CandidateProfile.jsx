@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import EmailAccountCard from "../components/EmailAccountCard";
 import NotificationPrompt from "../components/NotificationPrompt";
 import TrialBanner from "../components/TrialBanner";
 
@@ -82,8 +83,6 @@ export default function CandidateProfile() {
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeStatus, setResumeStatus] = useState(null);
   const [uploadingResume, setUploadingResume] = useState(false);
-  const [emailAccount, setEmailAccount] = useState(null);
-  const [connecting, setConnecting] = useState(false);
 
   async function load() {
     try {
@@ -101,7 +100,6 @@ export default function CandidateProfile() {
 
   useEffect(() => {
     load();
-    api.getEmailAccountStatus().then(setEmailAccount).catch(() => {});
   }, []);
 
   function set(field, value) {
@@ -138,26 +136,6 @@ export default function CandidateProfile() {
       setResumeStatus(e.detail || "Upload failed");
     } finally {
       setUploadingResume(false);
-    }
-  }
-
-  async function handleConnectGmail() {
-    setConnecting(true);
-    try {
-      const { consent_url } = await api.getEmailConnectUrl();
-      window.location.href = consent_url;
-    } catch (e) {
-      setError(e.detail || "Failed to start Gmail connection");
-      setConnecting(false);
-    }
-  }
-
-  async function handleDisconnectGmail() {
-    try {
-      await api.disconnectEmailAccount();
-      setEmailAccount({ connected: false });
-    } catch (e) {
-      setError(e.detail || "Failed to disconnect");
     }
   }
 
@@ -210,37 +188,7 @@ export default function CandidateProfile() {
         {resumeStatus && <p className="text-xs text-ink/60">{resumeStatus}</p>}
       </div>
 
-      {/* Gmail connection */}
-      <div className="rounded-xl border border-ink/10 p-4 space-y-3">
-        <h2 className="text-sm font-semibold">Email account</h2>
-        <p className="text-xs text-ink/50">
-          Connecting Gmail lets the app read recruiter emails about your applications, draft/send
-          replies and follow-ups, and manage interview calendar events — always with your review
-          before anything goes out, once that part of the app is live. You can disconnect anytime,
-          which also revokes access on Google's side.
-        </p>
-        {emailAccount?.connected ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs rounded-full px-2.5 py-1 font-medium bg-accentSoft text-accent">
-              Connected: {emailAccount.account_email}
-            </span>
-            <button
-              onClick={handleDisconnectGmail}
-              className="text-xs font-medium text-danger underline"
-            >
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleConnectGmail}
-            disabled={connecting}
-            className="btn btn-primary btn-small disabled:opacity-50"
-          >
-            {connecting ? "Redirecting…" : "Connect Gmail"}
-          </button>
-        )}
-      </div>
+      <EmailAccountCard />
 
       {/* Profile form */}
       <form onSubmit={handleSubmit} className="space-y-5">

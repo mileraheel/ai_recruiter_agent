@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from sqlalchemy import text
+
 from db.models import Base
 from db.session import get_engine
 
@@ -44,7 +46,16 @@ def main() -> None:
             raise SystemExit("Confirmation did not match -- aborted, nothing changed.")
 
     print("Dropping all tables...")
-    Base.metadata.drop_all(engine)
+    # Base.metadata.drop_all() orders drops using the CURRENT model graph --
+    # if a schema change removed/renamed a foreign key (e.g. a column swap),
+    # the live database can still have the OLD constraint sitting there,
+    # unknown to the current metadata, and drop_all() has no way to order
+    # around a constraint it doesn't know exists. Dropping the whole schema
+    # with CASCADE sidesteps that entirely -- correct for a dev-only reset
+    # tool where nothing here is worth preserving anyway.
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
     print("Recreating all tables from db/models.py...")
     Base.metadata.create_all(engine)
     print("Done. Tables are empty -- re-run your seed steps, e.g.:")

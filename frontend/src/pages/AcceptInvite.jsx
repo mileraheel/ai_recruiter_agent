@@ -3,6 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, decodeJwtRole } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LANDING, LOGIN_PATH } from "../config/roleRouting";
+import EmailAccountCard from "../components/EmailAccountCard";
+
+// Staff don't send outreach emails, so there's no reason to interrupt
+// their onboarding with a "connect email" step -- admin and candidate
+// only, matching who EmailAccountCard's backend actually supports.
+const CONNECT_EMAIL_ROLES = new Set(["admin", "candidate"]);
 
 export default function AcceptInvite() {
   const [email, setEmail] = useState("");
@@ -12,6 +18,8 @@ export default function AcceptInvite() {
   const [fullName, setFullName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [step, setStep] = useState("credentials"); // "credentials" | "connect-email"
+  const [landingPath, setLandingPath] = useState(LOGIN_PATH);
   const { loginWithToken } = useAuth();
   const navigate = useNavigate();
 
@@ -29,12 +37,38 @@ export default function AcceptInvite() {
       });
       const role = decodeJwtRole(res.access_token);
       loginWithToken(res.access_token, role);
-      navigate(ROLE_LANDING[role] || LOGIN_PATH);
+      const landing = ROLE_LANDING[role] || LOGIN_PATH;
+      if (CONNECT_EMAIL_ROLES.has(role)) {
+        setLandingPath(landing);
+        setStep("connect-email");
+      } else {
+        navigate(landing);
+      }
     } catch (err) {
       setError(err.detail || "Couldn't redeem this invite");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (step === "connect-email") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-sm space-y-5">
+          <div className="space-y-1 text-center">
+            <h1 className="text-xl font-semibold tracking-tight">Almost done</h1>
+            <p className="text-sm text-ink/60">
+              Connect the email account RolePace will send applications and outreach from — or
+              skip for now and do this anytime from your profile.
+            </p>
+          </div>
+          <EmailAccountCard />
+          <button onClick={() => navigate(landingPath)} className="w-full btn btn-primary">
+            Continue
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -115,7 +149,7 @@ export default function AcceptInvite() {
             </div>
             <div>
               <label htmlFor="invite-fullname" className="block text-xs font-medium text-ink/60 mb-1">
-                Full name <span className="text-ink/40">(candidate invites)</span>
+                Full name <span className="text-ink/40">(candidate invites, or admin invites for an individual account)</span>
               </label>
               <input
                 id="invite-fullname"

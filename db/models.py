@@ -281,8 +281,10 @@ class StoredFile(Base):
 
 
 class EmailAccountCredential(Base):
-    """One connected inbox for a candidate. OAuth2 (Gmail) is the
-    preferred path -- the app never sees the candidate's real password,
+    """One connected inbox for a user -- admin or candidate (owner_type
+    distinguishes which table owner_id points into, same pattern as
+    PushSubscription/PasswordResetToken). OAuth2 (Gmail) is the
+    preferred path -- the app never sees the user's real password,
     only a refresh token scoped to specific permissions, revocable from
     their Google account at any time. Encrypted app-password is a
     fallback for providers without OAuth2.
@@ -299,10 +301,11 @@ class EmailAccountCredential(Base):
     loop itself is a separate, later piece of work.
     """
     __tablename__ = "email_account_credentials"
-    __table_args__ = (UniqueConstraint("candidate_id", "provider"),)
+    __table_args__ = (UniqueConstraint("owner_type", "owner_id", "provider"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"), nullable=False)
+    owner_type: Mapped[str] = mapped_column(String, nullable=False)  # "admin" | "candidate"
+    owner_id: Mapped[int] = mapped_column(Integer, nullable=False)
     provider: Mapped[str] = mapped_column(String, nullable=False)  # "gmail" | "microsoft" | "other"
     account_email: Mapped[str] = mapped_column(String, nullable=False)
     secret_type: Mapped[str] = mapped_column(String, nullable=False)  # "oauth_refresh_token" | "app_password"
@@ -851,9 +854,12 @@ class AdminUser(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    # The immutable identifier -- never editable via the self-service
+    # profile endpoints (api/routers/admin_self.py), unlike email/full_name.
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String)
     # Needed for self-service password reset (OTP sent here). Populated
-    # at signup/invite-registration time.
+    # at signup/invite-registration time, editable later via admin_self.py.
     email: Mapped[str | None] = mapped_column(String, index=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     linked_candidate_id: Mapped[int | None] = mapped_column(ForeignKey("candidates.id"))

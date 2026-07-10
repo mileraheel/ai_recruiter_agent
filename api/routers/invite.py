@@ -106,6 +106,7 @@ def register_via_invite(payload: InviteRegisterRequest, db: Session = Depends(ge
             organization_id=invite.organization_id,
             username=payload.username,
             email=email,
+            full_name=payload.full_name,
             password_hash=hash_password(payload.password),
             linked_candidate_id=linked_candidate_id,
         )
