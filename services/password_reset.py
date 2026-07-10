@@ -1,7 +1,10 @@
 """
 Self-service password reset via OTP -- same mechanism as Invite
 (bcrypt-hashed OTP, expiry, attempt limit) but for an EXISTING account.
-Shared logic for both admin and candidate reset flows.
+Shared logic across all four account types (admin, candidate, staff,
+superuser) -- account_type/account_id are supplied by the caller, which
+is responsible for figuring out which table the identifying email
+matched (see api/routers/auth.py's unified password-reset endpoints).
 """
 from __future__ import annotations
 
@@ -11,7 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from api.auth import generate_otp, hash_otp, hash_password, verify_otp
-from db.models import AdminUser, Candidate, PasswordResetToken
+from db.models import AdminUser, Candidate, PasswordResetToken, Staff, SuperUser
 
 OTP_EXPIRE_MINUTES = 30
 
@@ -70,6 +73,10 @@ def redeem_reset_token(
         account = session.query(AdminUser).filter_by(id=account_id).one_or_none()
     elif account_type == "candidate":
         account = session.query(Candidate).filter_by(id=account_id).one_or_none()
+    elif account_type == "staff":
+        account = session.query(Staff).filter_by(id=account_id).one_or_none()
+    elif account_type == "superuser":
+        account = session.query(SuperUser).filter_by(id=account_id).one_or_none()
     else:
         raise HTTPException(status_code=500, detail=f"Unknown account_type: {account_type}")
 

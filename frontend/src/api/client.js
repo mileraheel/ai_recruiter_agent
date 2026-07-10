@@ -56,6 +56,9 @@ class ApiError extends Error {
 const AUTH_ENDPOINTS = new Set([
   "/auth/login",
   "/auth/signup",
+  "/auth/signin",
+  "/auth/password-reset/request",
+  "/auth/password-reset/confirm",
   "/superuser-auth/login",
   "/candidate-auth/login",
   "/candidate-auth/signup",
@@ -80,9 +83,10 @@ async function request(path, { method = "GET", body, form } = {}) {
   const res = await fetch(`/api${path}`, { method, headers, body: payload });
 
   if (res.status === 401 && !AUTH_ENDPOINTS.has(path)) {
-    const role = getRole();
+    // Single login page for every role now, so there's no per-role
+    // redirect target to pick between anymore.
     clearToken();
-    window.location.href = role === "candidate" ? "/candidate/login" : "/login";
+    window.location.href = "/login";
     throw new ApiError(401, "Session expired");
   }
 
@@ -103,6 +107,14 @@ async function request(path, { method = "GET", body, form } = {}) {
 export const api = {
   login: (username, password) => request("/auth/login", { method: "POST", form: { username, password } }),
   adminSignup: (payload) => request("/auth/signup", { method: "POST", body: payload }),
+
+  // Unified sign-in -- one identifier field (username or email), backend
+  // tries every account type and returns whichever matches. Role isn't
+  // known ahead of time, so callers decode it from the token (see
+  // decodeJwtRole above) the same way AcceptInvite.jsx already does.
+  signin: (identifier, password) => request("/auth/signin", { method: "POST", form: { username: identifier, password } }),
+  requestPasswordReset: (email) => request("/auth/password-reset/request", { method: "POST", body: { email } }),
+  confirmPasswordReset: (payload) => request("/auth/password-reset/confirm", { method: "POST", body: payload }),
   listCandidates: () => request("/candidates?limit=100").then((r) => r.items),
   triggerWatchCycle: () => request("/candidates/watch-cycle", { method: "POST" }),
   listApprovalQueue: (candidateId) =>

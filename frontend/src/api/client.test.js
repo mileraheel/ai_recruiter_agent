@@ -40,7 +40,7 @@ describe("api client", () => {
     });
   });
 
-  it("clears the token and redirects to the role-appropriate login on 401", async () => {
+  it("clears the token and redirects to the single /login page on 401, regardless of role", async () => {
     const { api, setToken, setRole } = await import("../api/client.js");
     setToken("fake-token");
     setRole("candidate");
@@ -52,10 +52,10 @@ describe("api client", () => {
 
     await expect(api.getMe()).rejects.toThrow();
     expect(localStorage.getItem("ai_recruiter_token")).toBeNull();
-    expect(window.location.href).toBe("/candidate/login");
+    expect(window.location.href).toBe("/login");
   });
 
-  it("redirects admins to /login (not /candidate/login) on 401", async () => {
+  it("redirects to /login on 401 for an admin session too", async () => {
     const { api, setToken, setRole } = await import("../api/client.js");
     setToken("fake-token");
     setRole("admin");

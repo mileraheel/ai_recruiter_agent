@@ -5,10 +5,17 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from api.auth import authenticate_admin, create_access_token, hash_password
+from api.auth import (
+    authenticate_admin,
+    authenticate_candidate,
+    authenticate_staff,
+    authenticate_superuser,
+    create_access_token,
+    hash_password,
+)
 from api.deps import get_db
 from api.schemas import TokenResponse
-from db.models import AdminUser, Organization
+from db.models import AdminUser, Candidate, Organization, Staff, SuperUser
 from services.rate_limit import check_not_locked, record_failure, record_success
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -107,7 +114,7 @@ class ResetPasswordRequest(BaseModel):
 
 @router.post("/forgot-password")
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    from services.email_sender import send_email
+    from services.email_sender import send_password_reset_email
     from services.password_reset import create_reset_token
 
     account = db.query(AdminUser).filter_by(email=payload.email.strip().lower()).one_or_none()
@@ -115,13 +122,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # not confirm/deny account existence to whoever's asking.
     if account is not None:
         otp = create_reset_token(db, "admin", account.id)
-        try:
-            send_email(
-                account.email, "Reset your password",
-                f"Your password reset code is: {otp}\nThis code expires in 30 minutes.",
-            )
-        except RuntimeError:
-            pass  # SMTP not configured -- fail quietly here too, same non-confirming response
+        send_password_reset_email(account.email, otp)
     return {"message": "If an account exists for that email, a reset code has been sent."}
 
 
@@ -135,4 +136,123 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
     redeem_reset_token(db, "admin", account.id, payload.otp, payload.new_password)
     token = create_access_token(account.username, role="admin")
+    return TokenResponse(access_token=token)
+
+
+@router.post("/signin", response_model=TokenResponse)
+def signin(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    """Single login for all four account types -- the frontend no longer
+    needs to know ahead of time whether someone is a candidate, admin,
+    staff, or superuser. Tries each account type's own authenticate_*
+    (candidate first, since it's the largest/most frequent audience;
+    order otherwise doesn't matter except in the vanishingly unlikely
+    case of the same raw string being valid credentials in two tables
+    at once, which isn't a new risk -- you'd already need to know that
+    other account's real password).
+
+    Uses a single generic rate-limit key rather than the org-specific
+    lockout policy the role-specific /login and /candidate-auth/login
+    endpoints use, since which org (if any) applies isn't known until
+    after an account type has already matched."""
+    identifier = form_data.username
+    account_key = f"login:{identifier.strip().lower()}"
+    check_not_locked(db, account_key)
+
+    candidate = authenticate_candidate(db, identifier, form_data.password)
+    if candidate:
+        record_success(db, account_key)
+        token = create_access_token(candidate.login_email, role="candidate", extra_claims={"candidate_id": candidate.id})
+        return TokenResponse(access_token=token)
+
+    admin = authenticate_admin(db, identifier, form_data.password)
+    if admin:
+        record_success(db, account_key)
+        extra_claims = {"linked_candidate_id": admin.linked_candidate_id} if admin.linked_candidate_id else None
+        token = create_access_token(admin.username, role="admin", extra_claims=extra_claims)
+        return TokenResponse(access_token=token)
+
+    staff = authenticate_staff(db, identifier, form_data.password)
+    if staff:
+        record_success(db, account_key)
+        token = create_access_token(staff.username, role="staff")
+        return TokenResponse(access_token=token)
+
+    superuser = authenticate_superuser(db, identifier, form_data.password)
+    if superuser:
+        record_success(db, account_key)
+        token = create_access_token(superuser.username, role="superuser")
+        return TokenResponse(access_token=token)
+
+    record_failure(db, account_key)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username/email or password",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+class UnifiedForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class UnifiedResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+
+def _find_account_by_email(db: Session, email: str):
+    """Checks all four account types by email, in the same order as
+    signin's identifier lookup, and returns (account_type, account)
+    for the first match -- or (None, None) if nothing matches. Staff/
+    superuser email is optional (see db/models.py), so accounts created
+    before that column existed simply won't match here, same graceful
+    degradation as an admin created without an email."""
+    candidate = db.query(Candidate).filter_by(login_email=email).one_or_none()
+    if candidate:
+        return "candidate", candidate
+    admin = db.query(AdminUser).filter_by(email=email).one_or_none()
+    if admin:
+        return "admin", admin
+    staff = db.query(Staff).filter_by(email=email).one_or_none()
+    if staff:
+        return "staff", staff
+    superuser = db.query(SuperUser).filter_by(email=email).one_or_none()
+    if superuser:
+        return "superuser", superuser
+    return None, None
+
+
+@router.post("/password-reset/request")
+def password_reset_request(payload: UnifiedForgotPasswordRequest, db: Session = Depends(get_db)):
+    from services.email_sender import send_password_reset_email
+    from services.password_reset import create_reset_token
+
+    email = payload.email.strip().lower()
+    account_type, account = _find_account_by_email(db, email)
+    # Same response whether or not the email matches an account -- does
+    # not confirm/deny account existence to whoever's asking.
+    if account is not None:
+        otp = create_reset_token(db, account_type, account.id)
+        send_password_reset_email(email, otp)
+    return {"message": "If an account exists for that email, a reset code has been sent."}
+
+
+@router.post("/password-reset/confirm", response_model=TokenResponse)
+def password_reset_confirm(payload: UnifiedResetPasswordRequest, db: Session = Depends(get_db)):
+    from services.password_reset import redeem_reset_token
+
+    email = payload.email.strip().lower()
+    account_type, account = _find_account_by_email(db, email)
+    if account is None:
+        raise HTTPException(status_code=404, detail="No pending password reset request found.")
+
+    redeem_reset_token(db, account_type, account.id, payload.otp, payload.new_password)
+    subject = account.login_email if account_type == "candidate" else account.username
+    extra_claims = None
+    if account_type == "candidate":
+        extra_claims = {"candidate_id": account.id}
+    elif account_type == "admin" and account.linked_candidate_id:
+        extra_claims = {"linked_candidate_id": account.linked_candidate_id}
+    token = create_access_token(subject, role=account_type, extra_claims=extra_claims)
     return TokenResponse(access_token=token)

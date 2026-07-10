@@ -97,19 +97,13 @@ class CandidateResetPasswordRequest(BaseModel):
 
 @router.post("/forgot-password")
 def forgot_password(payload: CandidateForgotPasswordRequest, db: Session = Depends(get_db)):
-    from services.email_sender import send_email
+    from services.email_sender import send_password_reset_email
     from services.password_reset import create_reset_token
 
     candidate = db.query(Candidate).filter_by(login_email=payload.login_email.strip().lower()).one_or_none()
     if candidate is not None:
         otp = create_reset_token(db, "candidate", candidate.id)
-        try:
-            send_email(
-                candidate.login_email, "Reset your password",
-                f"Your password reset code is: {otp}\nThis code expires in 30 minutes.",
-            )
-        except RuntimeError:
-            pass
+        send_password_reset_email(candidate.login_email, otp)
     return {"message": "If an account exists for that email, a reset code has been sent."}
 
 

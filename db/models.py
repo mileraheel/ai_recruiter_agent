@@ -50,6 +50,9 @@ class Staff(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    # Needed for self-service password reset (OTP sent here). Populated
+    # from the invite's email at redemption time -- see api/routers/invite.py.
+    email: Mapped[str | None] = mapped_column(String, index=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     created_by_superuser_id: Mapped[int | None] = mapped_column(ForeignKey("super_users.id"))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -806,6 +809,9 @@ class SuperUser(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    # Needed for self-service password reset (OTP sent here). Optional --
+    # bootstrap scripts can set it via --email / DEV_SUPERUSER_EMAIL.
+    email: Mapped[str | None] = mapped_column(String, index=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

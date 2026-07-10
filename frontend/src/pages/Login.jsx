@@ -2,20 +2,21 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { APP_NAME } from "../config/appInfo";
 import { useAuth } from "../context/AuthContext";
+import { ROLE_LANDING, LOGIN_PATH } from "../config/roleRouting";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const { loginAdmin, error } = useAuth();
+  const { login, error } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
-    const ok = await loginAdmin(username, password);
+    const role = await login(identifier, password);
     setSubmitting(false);
-    if (ok) navigate("/post-job");
+    if (role) navigate(ROLE_LANDING[role] || LOGIN_PATH);
   }
 
   return (
@@ -23,7 +24,7 @@ export default function Login() {
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-5">
         <div className="space-y-1 text-center">
           <h1 className="text-xl font-semibold tracking-tight">{APP_NAME}</h1>
-          <p className="text-sm text-ink/60">Sign in to manage your bench</p>
+          <p className="text-sm text-ink/60">Sign in to continue</p>
         </div>
 
         {error && (
@@ -32,11 +33,11 @@ export default function Login() {
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-ink/60 mb-1">Username</label>
+            <label className="block text-xs font-medium text-ink/60 mb-1">Username or email</label>
             <input
               type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="w-full rounded-lg border border-ink/15 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
               autoComplete="username"
               required
@@ -64,26 +65,8 @@ export default function Login() {
         </button>
 
         <p className="text-center text-xs text-ink/40">
-          Candidate?{" "}
-          <Link to="/candidate/login" className="underline">
-            Go to the candidate portal
-          </Link>
-          {" · "}
-          <Link to="/signup" className="underline">
-            Register your corporate
-          </Link>
-          {" · "}
-          <Link to="/accept-invite" className="underline">
-            I have an invite
-          </Link>
-        </p>
-        <p className="text-center text-xs text-ink/30">
-          <Link to="/superuser/login" className="underline">
-            Platform admin sign in
-          </Link>
-          {" · "}
-          <Link to="/staff/login" className="underline">
-            Staff sign in
+          <Link to="/forgot-password" className="underline">
+            Forgot password?
           </Link>
         </p>
       </form>

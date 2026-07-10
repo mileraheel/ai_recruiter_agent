@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from "react";
-import { api, getToken, getRole, setToken, setRole, clearToken } from "../api/client";
+import { api, getToken, getRole, setToken, setRole, clearToken, decodeJwtRole } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -7,6 +7,26 @@ export function AuthProvider({ children }) {
   const [isAuthed, setIsAuthed] = useState(!!getToken());
   const [role, setRoleState] = useState(getRole());
   const [error, setError] = useState(null);
+
+  // The single unified login (see Login.jsx) -- role isn't known ahead
+  // of time the way loginAdmin/loginCandidate/etc. below know theirs,
+  // so it's decoded from the returned token, same as loginWithToken's
+  // invite-redemption case.
+  const login = useCallback(async (identifier, password) => {
+    setError(null);
+    try {
+      const res = await api.signin(identifier, password);
+      const resolvedRole = decodeJwtRole(res.access_token);
+      setToken(res.access_token);
+      setRole(resolvedRole);
+      setRoleState(resolvedRole);
+      setIsAuthed(true);
+      return resolvedRole;
+    } catch (e) {
+      setError(e.detail || "Login failed");
+      return null;
+    }
+  }, []);
 
   const loginAdmin = useCallback(async (username, password) => {
     setError(null);
@@ -109,7 +129,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider
       value={{
-        isAuthed, role, loginAdmin, loginCandidate, loginSuperuser, loginStaff, loginWithToken,
+        isAuthed, role, login, loginAdmin, loginCandidate, loginSuperuser, loginStaff, loginWithToken,
         signupCandidate, logout, error,
       }}
     >

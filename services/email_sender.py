@@ -11,9 +11,12 @@ transactional provider (SendGrid/Postmark/SES's SMTP interface) later
 """
 from __future__ import annotations
 
+import logging
 import os
 import smtplib
 from email.mime.text import MIMEText
+
+logger = logging.getLogger(__name__)
 
 
 def _smtp_config() -> dict:
@@ -84,6 +87,33 @@ def send_invite_email(to_email: str, otp: str, role: str, organization_name: str
         f"along with the code to set your password and get started."
     )
     send_email(to_email, subject, body)
+
+
+def send_password_reset_email(to_email: str, otp: str) -> None:
+    """Used by every password-reset flow (admin, candidate, staff,
+    superuser -- see api/routers/auth.py). Includes both a clickable
+    link (pre-filling email+otp on the reset-password page) and the
+    bare code as a fallback, since the link depends on FRONTEND_BASE_URL
+    being reachable from wherever the recipient opens the email -- set
+    it to the app's public tunnel/deployment URL, not localhost, once
+    real emails need to go out.
+
+    If SMTP isn't configured, logs the link instead of raising -- callers
+    already treat "couldn't send" as a silent no-op (same
+    non-account-confirming response either way), so this keeps that
+    behavior while still making the link discoverable in logs/app.log
+    for local testing without a real mail server."""
+    base_url = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    reset_link = f"{base_url}/reset-password?email={to_email}&otp={otp}"
+    body = (
+        f"Click the link below to set a new password:\n{reset_link}\n\n"
+        f"Or enter this code manually: {otp}\n"
+        f"This code expires in 30 minutes."
+    )
+    try:
+        send_email(to_email, "Reset your password", body)
+    except RuntimeError:
+        logger.info(f"[dev] SMTP not configured -- password reset link for {to_email}: {reset_link}")
 
 
 def send_trial_reminder_email(to_email: str, expires_at, account_label: str | None = None) -> None:

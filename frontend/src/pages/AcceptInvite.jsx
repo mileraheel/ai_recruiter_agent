@@ -2,13 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, decodeJwtRole } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-
-const ROLE_LANDING = {
-  admin: "/post-job",
-  candidate: "/candidate/profile",
-  staff: "/staff/dashboard",
-  superuser: "/superuser/dashboard",
-};
+import { ROLE_LANDING, LOGIN_PATH } from "../config/roleRouting";
 
 export default function AcceptInvite() {
   const [email, setEmail] = useState("");
@@ -35,7 +29,7 @@ export default function AcceptInvite() {
       });
       const role = decodeJwtRole(res.access_token);
       loginWithToken(res.access_token, role);
-      navigate(ROLE_LANDING[role] || "/login");
+      navigate(ROLE_LANDING[role] || LOGIN_PATH);
     } catch (err) {
       setError(err.detail || "Couldn't redeem this invite");
     } finally {

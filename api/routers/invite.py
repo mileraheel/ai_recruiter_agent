@@ -158,6 +158,7 @@ def register_via_invite(payload: InviteRegisterRequest, db: Session = Depends(ge
         # role='staff' invite is ever created.
         staff = Staff(
             username=payload.username,
+            email=invite.email,
             password_hash=hash_password(payload.password),
             created_by_superuser_id=invite.invited_by_id,
         )

@@ -9,9 +9,10 @@ testing: it reads a fixed username/password from your own .env
 (never committed -- see .gitignore) and upserts that superuser,
 same idempotent create-or-reset behavior as the interactive script.
 
-Setup (one time): add these two lines to your local .env:
+Setup (one time): add these lines to your local .env:
     DEV_SUPERUSER_USERNAME=raheel
     DEV_SUPERUSER_PASSWORD=<pick something you'll remember, 10+ chars>
+    DEV_SUPERUSER_EMAIL=<optional -- needed for self-service password reset>
 
 Usage:
     python -m api.bootstrap_superuser_dev
@@ -36,6 +37,7 @@ from db.session import get_session_factory
 def main() -> None:
     username = os.environ.get("DEV_SUPERUSER_USERNAME")
     password = os.environ.get("DEV_SUPERUSER_PASSWORD")
+    email = os.environ.get("DEV_SUPERUSER_EMAIL")  # optional
 
     if not username or not password:
         raise SystemExit(
@@ -53,10 +55,12 @@ def main() -> None:
         existing = session.query(SuperUser).filter_by(username=username).one_or_none()
         if existing:
             existing.password_hash = hash_password(password)
+            if email:
+                existing.email = email
             session.commit()
             print(f"[dev] Password reset for existing superuser '{username}'.")
         else:
-            session.add(SuperUser(username=username, password_hash=hash_password(password)))
+            session.add(SuperUser(username=username, email=email, password_hash=hash_password(password)))
             session.commit()
             print(f"[dev] Superuser '{username}' created.")
     print("[dev] Log in at the app's login screen with the credentials from your .env.")
