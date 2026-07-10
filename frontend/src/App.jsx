@@ -20,6 +20,8 @@ import ArtifactReview from "./pages/ArtifactReview";
 import SuperuserDashboard from "./pages/SuperuserDashboard";
 import StaffDashboard from "./pages/StaffDashboard";
 import AdminProfile from "./pages/AdminProfile";
+import SuperuserProfile from "./pages/SuperuserProfile";
+import StaffProfile from "./pages/StaffProfile";
 
 function ProtectedRoute({ role, children }) {
   const { isAuthed, role: currentRole } = useAuth();
@@ -51,10 +53,26 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/superuser/profile"
+        element={
+          <ProtectedRoute role="superuser">
+            <SuperuserProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/staff/dashboard"
         element={
           <ProtectedRoute role="staff">
             <StaffDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/profile"
+        element={
+          <ProtectedRoute role="staff">
+            <StaffProfile />
           </ProtectedRoute>
         }
       />

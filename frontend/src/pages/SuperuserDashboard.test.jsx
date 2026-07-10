@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../api/client.js", () => ({
   api: {
@@ -58,7 +59,11 @@ describe("SuperuserDashboard", () => {
   });
 
   it("shows the Manage tab by default and does NOT fetch reports data on initial load", async () => {
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     expect(screen.getByText("Onboard an organization directly")).toBeInTheDocument();
     await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled()); // the one cheap mount-time fetch
@@ -69,7 +74,11 @@ describe("SuperuserDashboard", () => {
 
   it("only fetches reports data when the Reports tab is clicked", async () => {
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     await user.click(screen.getByRole("button", { name: "Reports" }));
 
@@ -80,7 +89,11 @@ describe("SuperuserDashboard", () => {
 
   it("does not re-fetch when switching back to Reports a second time -- only Refresh does", async () => {
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     await user.click(screen.getByRole("button", { name: "Reports" }));
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
@@ -96,7 +109,11 @@ describe("SuperuserDashboard", () => {
 
   it("shows sales_person attribution and trial info in the sortable organizations table", async () => {
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
     await user.click(screen.getByRole("button", { name: "Reports" }));
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
@@ -113,7 +130,11 @@ describe("SuperuserDashboard", () => {
       ],
     });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
     await user.click(screen.getByRole("button", { name: "Reports" }));
 
     await waitFor(() => expect(screen.getByText("Beta Corp")).toBeInTheDocument());
@@ -134,7 +155,11 @@ describe("SuperuserDashboard", () => {
       ],
     });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
     await user.click(screen.getByRole("button", { name: "Reports" }));
     await waitFor(() => expect(screen.getByText("Zebra Corp")).toBeInTheDocument());
 
@@ -153,7 +178,11 @@ describe("SuperuserDashboard", () => {
   it("invites a staff member by email only -- no username/password fields", async () => {
     api.inviteStaff.mockResolvedValue({ invited_email: "newstaffer@example.com", expires_at: "2026-07-14T00:00:00Z" });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     expect(screen.queryByPlaceholderText(/username/i)).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText("Email address"), "newstaffer@example.com");
@@ -171,7 +200,11 @@ describe("SuperuserDashboard", () => {
       trial_expires_at: "2026-08-06",
     });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     await user.type(screen.getByPlaceholderText("Organization name"), "Solo Jane");
     await user.type(screen.getByPlaceholderText("Admin/candidate email"), "jane@example.com");
@@ -194,7 +227,11 @@ describe("SuperuserDashboard", () => {
   it("shows an error when creating an organization with a duplicate name", async () => {
     api.createOrganization.mockRejectedValue({ detail: "An organization named 'Acme Staffing' already exists." });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     await user.type(screen.getByPlaceholderText("Organization name"), "Acme Staffing");
     await user.type(screen.getByPlaceholderText("Admin/candidate email"), "x@acme.com");
@@ -208,7 +245,11 @@ describe("SuperuserDashboard", () => {
   it("saves updated invite-expiry platform settings", async () => {
     api.updatePlatformSettings.mockResolvedValue({ invite_expire_days: 10 });
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled());
     const daysInput = await screen.findByDisplayValue("7");
@@ -235,7 +276,11 @@ describe("SuperuserDashboard", () => {
       },
     ]);
     const user = userEvent.setup();
-    render(<SuperuserDashboard />);
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
     await user.click(screen.getByRole("button", { name: "Reports" }));
 
     await waitFor(() => expect(screen.getByText("pending@example.com")).toBeInTheDocument());

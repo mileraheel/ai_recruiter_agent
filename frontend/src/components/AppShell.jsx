@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { to: "/candidate-submissions", label: "Profiles", icon: "◈" },
   { to: "/candidates", label: "Candidates", icon: "☰" },
   { to: "/job-check", label: "Quick Check", icon: "?" },
-  { to: "/admin/profile", label: "Profile", icon: "⚙" },
 ];
 
 function NavLinkItem({ to, label, icon, mobile }) {
@@ -52,12 +51,24 @@ export default function AppShell() {
             <NavLinkItem key={item.to} {...item} />
           ))}
         </nav>
-        <button
-          onClick={logout}
-          className="mt-auto text-left px-4 py-2.5 rounded-lg text-sm font-medium text-ink/50 hover:bg-ink/5"
-        >
-          Log out
-        </button>
+        <div className="mt-auto flex flex-col gap-1">
+          <NavLink
+            to="/admin/profile"
+            className={({ isActive }) =>
+              `text-left px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-ink/5 ${
+                isActive ? "bg-accentSoft text-accent" : "text-ink/50"
+              }`
+            }
+          >
+            Update profile
+          </NavLink>
+          <button
+            onClick={logout}
+            className="text-left px-4 py-2.5 rounded-lg text-sm font-medium text-ink/50 hover:bg-ink/5"
+          >
+            Log out
+          </button>
+        </div>
       </aside>
 
       {/* Mobile top bar */}
@@ -66,9 +77,14 @@ export default function AppShell() {
           <span className="font-mono text-xs bg-ink text-accent px-[7px] py-1 rounded tracking-wide">00:00</span>
           <span className="font-display text-lg font-bold tracking-tight">{APP_NAME}</span>
         </div>
-        <button onClick={logout} className="text-xs font-medium text-ink/50">
-          Log out
-        </button>
+        <div className="flex items-center gap-3">
+          <NavLink to="/admin/profile" className="text-xs font-medium text-ink/50 underline">
+            Profile
+          </NavLink>
+          <button onClick={logout} className="text-xs font-medium text-ink/50">
+            Log out
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-5 md:px-8 md:py-8 pb-20 md:pb-8 max-w-3xl w-full mx-auto">

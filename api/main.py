@@ -32,7 +32,7 @@ from api.routers import (
     applications, job_posting, reports, superuser,
     invite, staff_auth, staff, candidate_config,
     candidate_documents, candidate_artifact_review, organization_settings, dashboard,
-    push, admin_self,
+    push, admin_self, staff_self, superuser_self,
 )
 from config.app_info import APP_NAME
 from db.session import get_session_factory
@@ -100,6 +100,8 @@ app.include_router(organization_settings.router)
 app.include_router(dashboard.router)
 app.include_router(push.router)
 app.include_router(admin_self.router)
+app.include_router(staff_self.router)
+app.include_router(superuser_self.router)
 
 
 @app.get("/api/health")

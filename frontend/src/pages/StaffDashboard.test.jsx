@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 vi.mock("../api/client.js", () => ({
   api: {
@@ -36,7 +37,11 @@ describe("StaffDashboard", () => {
 
   it("lists organizations this staff member has onboarded", async () => {
     api.listMyOrganizations.mockResolvedValue([SAMPLE_ORG]);
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
     expect(screen.getByText("Active")).toBeInTheDocument();
@@ -44,7 +49,11 @@ describe("StaffDashboard", () => {
 
   it("shows an empty state when no organizations have been onboarded yet", async () => {
     api.listMyOrganizations.mockResolvedValue([]);
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText(/no organizations onboarded yet/i)).toBeInTheDocument());
   });
@@ -58,7 +67,11 @@ describe("StaffDashboard", () => {
       trial_expires_at: "2026-07-21",
     });
     const user = userEvent.setup();
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText(/no organizations onboarded yet/i)).toBeInTheDocument());
 
@@ -89,7 +102,11 @@ describe("StaffDashboard", () => {
       trial_expires_at: null,
     });
     const user = userEvent.setup();
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText(/no organizations onboarded yet/i)).toBeInTheDocument());
 
@@ -113,7 +130,11 @@ describe("StaffDashboard", () => {
     api.listMyOrganizations.mockResolvedValue([
       { ...SAMPLE_ORG, trial_expires_at: "2026-07-10", trial_days_remaining: 3 },
     ]);
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
     expect(screen.getByText("2026-07-10 (3d)")).toBeInTheDocument();
@@ -125,7 +146,11 @@ describe("StaffDashboard", () => {
       detail: "An organization named 'Beta Corp' already exists.",
     });
     const user = userEvent.setup();
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText(/no organizations onboarded yet/i)).toBeInTheDocument());
 
@@ -142,7 +167,11 @@ describe("StaffDashboard", () => {
     api.listMyOrganizations.mockResolvedValue([SAMPLE_ORG]);
     api.deactivateOrganization.mockResolvedValue({ organization_id: 7, is_active: false });
     const user = userEvent.setup();
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /deactivate/i }));
@@ -155,7 +184,11 @@ describe("StaffDashboard", () => {
     window.confirm = vi.fn(() => false);
     api.listMyOrganizations.mockResolvedValue([SAMPLE_ORG]);
     const user = userEvent.setup();
-    render(<StaffDashboard />);
+    render(
+      <MemoryRouter>
+        <StaffDashboard />
+      </MemoryRouter>
+    );
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /deactivate/i }));

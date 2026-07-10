@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import EmailAccountCard from "../components/EmailAccountCard";
 
-export default function AdminProfile() {
+export default function SuperuserProfile() {
   const { logout } = useAuth();
   const [me, setMe] = useState(null);
   const [fullName, setFullName] = useState("");
@@ -20,7 +20,7 @@ export default function AdminProfile() {
 
   useEffect(() => {
     api
-      .getAdminMe()
+      .getSuperuserMe()
       .then((data) => {
         setMe(data);
         setFullName(data.full_name || "");
@@ -35,7 +35,7 @@ export default function AdminProfile() {
     setError(null);
     setSaved(false);
     try {
-      const updated = await api.updateAdminProfile({ full_name: fullName || null, email: email || null });
+      const updated = await api.updateSuperuserProfile({ full_name: fullName || null, email: email || null });
       setMe(updated);
       setSaved(true);
     } catch (e) {
@@ -51,7 +51,7 @@ export default function AdminProfile() {
     setPasswordError(null);
     setPasswordMessage(null);
     try {
-      await api.changeAdminPassword({ current_password: currentPassword, new_password: newPassword });
+      await api.changeSuperuserPassword({ current_password: currentPassword, new_password: newPassword });
       setPasswordMessage("Password updated.");
       setCurrentPassword("");
       setNewPassword("");

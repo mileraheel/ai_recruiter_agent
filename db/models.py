@@ -50,6 +50,7 @@ class Staff(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String)
     # Needed for self-service password reset (OTP sent here). Populated
     # from the invite's email at redemption time -- see api/routers/invite.py.
     email: Mapped[str | None] = mapped_column(String, index=True)
@@ -306,8 +307,12 @@ class EmailAccountCredential(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     owner_type: Mapped[str] = mapped_column(String, nullable=False)  # "admin" | "candidate"
     owner_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    provider: Mapped[str] = mapped_column(String, nullable=False)  # "gmail" | "microsoft" | "other"
+    provider: Mapped[str] = mapped_column(String, nullable=False)  # "gmail" | "microsoft" | "smtp" | "other"
     account_email: Mapped[str] = mapped_column(String, nullable=False)
+    # Only set when provider="smtp" -- the manual-entry fallback path.
+    smtp_host: Mapped[str | None] = mapped_column(String)
+    smtp_port: Mapped[int | None] = mapped_column(Integer)
+    smtp_username: Mapped[str | None] = mapped_column(String)
     secret_type: Mapped[str] = mapped_column(String, nullable=False)  # "oauth_refresh_token" | "app_password"
     encrypted_secret: Mapped[str] = mapped_column(Text, nullable=False)
     scopes_granted: Mapped[list[str] | None] = mapped_column(JSON)
@@ -812,6 +817,7 @@ class SuperUser(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String)
     # Needed for self-service password reset (OTP sent here). Optional --
     # bootstrap scripts can set it via --email / DEV_SUPERUSER_EMAIL.
     email: Mapped[str | None] = mapped_column(String, index=True)

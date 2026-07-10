@@ -182,15 +182,27 @@ export const api = {
   updateAdminProfile: (payload) => request("/admin/me", { method: "PUT", body: payload }),
   changeAdminPassword: (payload) => request("/admin/me/password", { method: "PUT", body: payload }),
 
+  // Staff self-service (own profile)
+  getStaffMe: () => request("/staff/me"),
+  updateStaffProfile: (payload) => request("/staff/me", { method: "PUT", body: payload }),
+  changeStaffPassword: (payload) => request("/staff/me/password", { method: "PUT", body: payload }),
+
+  // Superuser self-service (own profile)
+  getSuperuserMe: () => request("/superuser/me"),
+  updateSuperuserProfile: (payload) => request("/superuser/me", { method: "PUT", body: payload }),
+  changeSuperuserPassword: (payload) => request("/superuser/me/password", { method: "PUT", body: payload }),
+
   // Admin review of candidate profile submissions
   listCandidateSubmissions: () => request("/candidate-review?limit=100").then((r) => r.items),
   decideCandidateSubmission: (submissionId, decision) =>
     request(`/candidate-review/${submissionId}/decision`, { method: "POST", body: decision }),
 
-  // Gmail connection
+  // Connected email account -- Gmail (OAuth) or SMTP (manual entry), same
+  // endpoints for every role; the backend resolves who's asking.
   getEmailAccountStatus: () => request("/me/email-account"),
   getEmailConnectUrl: () => request("/me/email-account/connect-url"),
   disconnectEmailAccount: () => request("/me/email-account", { method: "DELETE" }),
+  connectSmtp: (payload) => request("/me/email-account/smtp", { method: "PUT", body: payload }),
 
   // Applications (prepare + send)
   prepareApplication: (jobId) => request(`/applications/${jobId}/prepare`, { method: "POST" }),
