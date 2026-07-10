@@ -16,6 +16,7 @@ from pathlib import Path
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
+from config.app_info import APP_NAME
 from db.models import Base
 
 OUTPUT_PATH = Path(__file__).parent / "schema.sql"
@@ -28,7 +29,7 @@ def main() -> None:
         statements.append(ddl.strip() + ";")
 
     header = (
-        "-- AI Recruiter Agent -- full database schema (PostgreSQL)\n"
+        f"-- {APP_NAME} -- full database schema (PostgreSQL)\n"
         "-- Generated from db/models.py -- this is a REFERENCE snapshot.\n"
         "-- The actual source of truth is db/models.py + db/session.py::init_db()\n"
         "-- (SQLAlchemy create_all()), which is what the app itself runs.\n"

@@ -14,7 +14,13 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "AI Recruiter Agent", body: "", url: "/" };
+  // "Role Pace" here is only a last-resort fallback for a malformed/
+  // titleless payload -- the real title comes from whatever the
+  // backend sends in the push payload itself (see services/push*.py),
+  // which is where APP_NAME actually flows from. This file is a
+  // static public/ asset (not bundled by Vite), so it can't read
+  // VITE_APP_NAME at runtime the way the rest of the app does.
+  let data = { title: "Role Pace", body: "", url: "/" };
   try {
     data = { ...data, ...event.data.json() };
   } catch {

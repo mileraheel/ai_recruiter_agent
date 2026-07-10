@@ -28,6 +28,7 @@ import os
 from dataclasses import dataclass
 from datetime import date
 
+from config.app_info import APP_NAME
 from config.schema import CandidateConfig
 from core.role_classifier import classify_role
 
@@ -41,9 +42,10 @@ def _disclosure_line() -> str:
     unsolicited document request in reply to this thread can verify the
     original outreach really was AI-assisted and legitimate, rather
     than the app's identity being usable as phishing cover; (2) a
-    marketing touchpoint for the platform itself. App name and URL are
-    env-configurable since neither is finalized yet."""
-    app_name = os.environ.get("AI_RECRUITER_APP_NAME", "AI Recruiter")
+    marketing touchpoint for the platform itself. App name comes from
+    config/app_info.py (APP_NAME env var); the marketing URL is still
+    env-configurable on its own since it isn't finalized yet."""
+    app_name = APP_NAME
     url = os.environ.get("AI_RECRUITER_MARKETING_URL", "").strip()
     line = f"This email was prepared by {app_name} on behalf of the candidate, with their permission."
     if url:

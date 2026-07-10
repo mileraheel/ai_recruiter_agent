@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # reads .env in the current directory, if present, into os.environ
 
+from config.app_info import APP_NAME
 from config.loader import load_config
 from core.eligibility import evaluate_eligibility
 from core.extraction import (
@@ -200,7 +201,7 @@ def cmd_generate_signature(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="AI Recruiter Agent -- Phase 1 CLI")
+    parser = argparse.ArgumentParser(description=f"{APP_NAME} -- Phase 1 CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
     check_job = sub.add_parser("check-job", help="Run the eligibility filter on a job description file")

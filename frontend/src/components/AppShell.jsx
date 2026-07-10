@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { APP_NAME } from "../config/appInfo";
 import { useAuth } from "../context/AuthContext";
 import NotificationPrompt from "./NotificationPrompt";
 import TrialBanner from "./TrialBanner";
@@ -42,7 +43,7 @@ export default function AppShell() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:border-black/10 md:px-3 md:py-6">
         <div className="px-3 pb-6">
-          <p className="text-sm font-semibold tracking-tight">AI Recruiter Agent</p>
+          <p className="text-sm font-semibold tracking-tight">{APP_NAME}</p>
         </div>
         <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (
@@ -59,7 +60,7 @@ export default function AppShell() {
 
       {/* Mobile top bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-black/10 sticky top-0 bg-paper z-10">
-        <p className="text-sm font-semibold tracking-tight">AI Recruiter Agent</p>
+        <p className="text-sm font-semibold tracking-tight">{APP_NAME}</p>
         <button onClick={logout} className="text-xs font-medium text-ink/50">
           Log out
         </button>

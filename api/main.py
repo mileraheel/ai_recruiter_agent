@@ -34,6 +34,7 @@ from api.routers import (
     candidate_documents, candidate_artifact_review, organization_settings, dashboard,
     push,
 )
+from config.app_info import APP_NAME
 from db.session import get_session_factory
 from services.file_watcher import run_watch_cycle
 from services.logging_config import configure_logging
@@ -42,7 +43,7 @@ from services.storage import get_storage
 configure_logging()
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="AI Recruiter Agent API", version="0.1.0")
+app = FastAPI(title=f"{APP_NAME} API", version="0.1.0")
 
 _allowed_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(

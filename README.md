@@ -1,4 +1,4 @@
-# AI Recruiter Agent — Phase 1 (Core Brain)
+# Role Pace — Phase 1 (Core Brain)
 
 Config-driven, automation-free foundation: load candidate config, run the
 eligibility filter against job text, get an auditable decision back.
@@ -49,7 +49,27 @@ python cli.py check-job --config config\candidate.yaml --file sample_jobs\your_f
 ```
 
 
-## Structure
+## Environment variables
+
+Two `.env` files, one per stack -- both git-ignored, neither is committed:
+
+- **Backend** (`.env` in the repo root, loaded by `cli.py` / `api/main.py` via
+  `python-dotenv`): candidate email/phone/sender, `DATABASE_URL`, and:
+  - `APP_NAME` -- the platform's display name used anywhere the backend names
+    itself out loud (FastAPI docs title, CLI banner, generated `schema.sql`
+    header, the outreach-email disclosure line). Defaults to `Role Pace` if
+    unset -- see `config/app_info.py`.
+- **Frontend** (`frontend/.env`, loaded by Vite -- copy from
+  `frontend/.env.example` to start):
+  - `VITE_APP_NAME` -- the same display name, used for the browser tab title,
+    the PWA manifest (`public/manifest.json`, regenerated automatically at
+    `npm run dev` / `npm run build` time), and the in-app header/login
+    screen. Defaults to `Role Pace` if unset -- see `frontend/src/config/appInfo.js`.
+
+To rename the app later, change both of those two values and restart/rebuild
+-- no code changes needed.
+
+
 - `config/schema.py` — Pydantic models for candidate.yaml (fails fast on bad config)
 - `config/loader.py` — YAML loader with `${ENV_VAR}` resolution
 - `config/candidate.example.yaml` — safe-to-commit example config

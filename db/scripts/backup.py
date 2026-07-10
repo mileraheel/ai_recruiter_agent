@@ -20,7 +20,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backup the AI Recruiter Agent database")
+    parser = argparse.ArgumentParser(description="Backup the Role Pace database")
     parser.add_argument("--container", default="ai_recruiter_db")
     parser.add_argument("--db", default="ai_recruiter")
     parser.add_argument("--user", default="postgres")

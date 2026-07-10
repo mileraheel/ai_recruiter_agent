@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { APP_NAME } from "../config/appInfo";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -21,7 +22,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-5">
         <div className="space-y-1 text-center">
-          <h1 className="text-xl font-semibold tracking-tight">AI Recruiter Agent</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{APP_NAME}</h1>
           <p className="text-sm text-ink/60">Sign in to manage your bench</p>
         </div>
 

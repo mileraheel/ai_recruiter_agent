@@ -1,5 +1,5 @@
 """
-Pydantic models for the AI Recruiter Agent configuration.
+Pydantic models for the Role Pace candidate configuration.
 
 Loading candidate.yaml through these models means bad config fails fast,
 at startup, with a clear error -- rather than causing confusing behavior
