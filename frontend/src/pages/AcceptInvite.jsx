@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, decodeJwtRole } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { ROLE_LANDING, LOGIN_PATH } from "../config/roleRouting";
@@ -11,8 +11,13 @@ import EmailAccountCard from "../components/EmailAccountCard";
 const CONNECT_EMAIL_ROLES = new Set(["admin", "candidate"]);
 
 export default function AcceptInvite() {
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  const [searchParams] = useSearchParams();
+  // Pre-filled when arriving via the invite email's direct link (same
+  // ?email=&otp= pattern as ResetPassword.jsx) -- still works with
+  // nothing pre-filled for anyone who instead followed "I have an
+  // invite" from the login screen and typed both by hand.
+  const [email, setEmail] = useState(searchParams.get("email") || "");
+  const [otp, setOtp] = useState(searchParams.get("otp") || "");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");

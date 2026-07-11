@@ -64,7 +64,11 @@ export default function Login() {
           {submitting ? "Signing in…" : "Sign in"}
         </button>
 
-        <p className="text-center text-xs text-ink/40">
+        <p className="text-center text-xs text-ink/40 space-x-2">
+          <Link to="/accept-invite" className="underline">
+            I have an invite
+          </Link>
+          <span>·</span>
           <Link to="/forgot-password" className="underline">
             Forgot password?
           </Link>

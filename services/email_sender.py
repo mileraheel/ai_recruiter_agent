@@ -122,13 +122,16 @@ def send_invite_email(
         subject = f"{APP_NAME} invites you to get started"
         intro = f"You've been invited to set up your account on {APP_NAME}."
 
+    base_url = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5173")
+    accept_link = f"{base_url}/accept-invite?email={to_email}&otp={otp}"
     day_word = "day" if expire_days == 1 else "days"
     body = (
         f"{intro}\n\n"
+        f"Click the link below to set your password and get started:\n{accept_link}\n\n"
+        f"Or go to the {APP_NAME} sign-in page, click \"I have an invite,\" and enter this "
+        f"email address along with the code below:\n"
         f"Your one-time verification code: {otp}\n"
         f"This code is valid for {expire_days} {day_word} and can only be used once.\n\n"
-        f"To get started, open {APP_NAME}, select \"I have an invite,\" and enter this email "
-        f"address along with the code above to set your password.\n\n"
         f"If you weren't expecting this invitation, you can safely ignore this email."
     )
     send_email(session, to_email, subject, body)
