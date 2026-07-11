@@ -217,12 +217,17 @@ export default function EmailAccountCard() {
                 🔒 This password is encrypted before it's stored. No one — including RolePace staff —
                 can ever view or retrieve it again; it's used only to send and read on your behalf.
               </p>
+              <p className="rounded-lg bg-ink/5 text-ink/60 text-xs px-3 py-2">
+                Before saving, RolePace will send itself a test email using these details and confirm
+                it arrives — this catches a wrong host/port/password immediately instead of only
+                surfacing as a failure later. This can take up to about 30 seconds.
+              </p>
               <button
                 type="submit"
                 disabled={savingSmtp}
                 className="w-full btn btn-primary btn-small disabled:opacity-50"
               >
-                {savingSmtp ? "Saving…" : "Save connection details"}
+                {savingSmtp ? "Testing connection…" : "Test & save connection details"}
               </button>
             </form>
           )}

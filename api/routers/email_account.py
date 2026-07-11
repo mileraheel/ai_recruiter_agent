@@ -228,7 +228,29 @@ def connect_smtp(
     EmailAccountCredential's docstring. The password is encrypted at
     rest (same mechanism as the Gmail refresh token) and is never
     returned by /status or any other response -- once saved, there is
-    no API that reads it back out in plaintext or ciphertext."""
+    no API that reads it back out in plaintext or ciphertext.
+
+    Before any of that is saved, actually proves the details work: sends
+    a real test email to the account's own address via SMTP, then polls
+    the same account's inbox via IMAP until that email shows up. A
+    typo'd host/port/password fails HERE with a specific reason instead
+    of silently saving as "connected" and only breaking much later when
+    the app tries to send/read on the user's behalf."""
+    from services.email_connection_test import verify_smtp_imap_roundtrip
+
+    try:
+        verify_smtp_imap_roundtrip(
+            smtp_host=payload.smtp_host,
+            smtp_port=payload.smtp_port,
+            imap_host=payload.imap_host,
+            imap_port=payload.imap_port,
+            username=payload.username,
+            password=payload.password,
+            account_email=payload.account_email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
     owner_type, owner_id = owner
     existing = (
         db.query(EmailAccountCredential)
