@@ -109,7 +109,9 @@ def invite_candidate(
     try:
         send_invite_email(payload.email, otp, "candidate", org.name, settings.invite_expire_days)
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=f"Invite created, but email failed to send: {e}")
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Could not invite candidate: email failed to send: {e}")
+    db.commit()
 
     return InviteCandidateResponse(invited_email=payload.email)
 

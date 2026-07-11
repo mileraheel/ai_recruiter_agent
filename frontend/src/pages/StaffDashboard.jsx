@@ -114,7 +114,7 @@ export default function StaffDashboard() {
     setInviteSuccess(null);
     try {
       const res = await api.inviteOrganization({
-        organization_name: orgName,
+        organization_name: accountType === "individual" ? null : orgName,
         admin_email: adminEmail,
         account_type: accountType,
         trial_days: trialDays === "" ? null : Number(trialDays),
@@ -176,29 +176,23 @@ export default function StaffDashboard() {
 
       <form onSubmit={handleInvite} className="rounded-xl border border-ink/10 p-4 space-y-3">
         <p className="text-sm font-medium">Onboard a new organization</p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <input
-            type="text"
-            value={orgName}
-            onChange={(e) => setOrgName(e.target.value)}
-            placeholder="Organization name"
-            required
-            className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
-          <input
-            type="email"
-            value={adminEmail}
-            onChange={(e) => setAdminEmail(e.target.value)}
-            placeholder="First admin's email"
-            required
-            className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
-        </div>
+        <input
+          type="email"
+          value={adminEmail}
+          onChange={(e) => setAdminEmail(e.target.value)}
+          placeholder="First admin's email"
+          required
+          className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+        />
         <label className="flex items-center gap-2 text-sm text-ink/70">
           <span>Account type</span>
           <select
             value={accountType}
-            onChange={(e) => setAccountType(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setAccountType(next);
+              if (next === "individual") setOrgName("");
+            }}
             className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
           >
             <option value="agency">Agency (staffing company with a bench of candidates)</option>
@@ -219,6 +213,15 @@ export default function StaffDashboard() {
             {defaultTrialDays !== null ? `Defaults to ${defaultTrialDays}` : "Leave blank for no trial expiry"}
           </span>
         </label>
+        <input
+          type="text"
+          value={orgName}
+          onChange={(e) => setOrgName(e.target.value)}
+          placeholder={accountType === "individual" ? "Not needed for individual accounts" : "Organization name"}
+          required={accountType === "agency"}
+          disabled={accountType === "individual"}
+          className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:bg-ink/5 disabled:text-ink/40"
+        />
         <button
           type="submit"
           disabled={inviting}

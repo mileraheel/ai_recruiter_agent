@@ -17,6 +17,14 @@ invites commonly need to survive over a weekend before someone gets
 around to checking their email, unlike a password-reset OTP (see
 services/password_reset.py), which is deliberately short-lived since
 it's issued at the moment someone is actively trying to log in.
+
+Deliberately does NOT commit -- the caller sends the actual invite
+email (and, for org-creation call sites, has already flushed a new
+Organization row) immediately after this returns, and must roll back
+the whole transaction (organization + invite together) if that send
+fails. Committing here first would leave a real organization/invite
+permanently saved even though the invitee has no way to ever see their
+OTP.
 """
 from __future__ import annotations
 
@@ -53,6 +61,5 @@ def create_invite(
         max_attempts=settings.invite_max_attempts,
     )
     session.add(invite)
-    session.commit()
-    session.refresh(invite)
+    session.flush()
     return invite, otp

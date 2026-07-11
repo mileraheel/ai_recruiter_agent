@@ -157,7 +157,9 @@ def invite_staff(
     try:
         send_invite_email(payload.email, otp, "staff", None, settings.invite_expire_days)
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=f"Invite created, but email failed to send: {e}")
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Could not invite staff member: email failed to send: {e}")
+    db.commit()
 
     return InviteStaffResponse(invited_email=payload.email, expires_at=invite.expires_at.isoformat())
 
@@ -339,7 +341,10 @@ def list_platform_statuses(db: Session = Depends(get_db)):
 
 
 class CreateOrganizationRequest(BaseModel):
-    organization_name: str
+    # Required for 'agency', optional for 'individual' (auto-derived
+    # from admin_email if omitted -- a standalone candidate has no
+    # agency name to give).
+    organization_name: str | None = None
     admin_email: str
     account_type: str = "agency"  # "agency" | "individual" -- 'individual' is how a
     # superuser creates what's effectively a single standalone candidate: one
@@ -369,11 +374,21 @@ def create_organization(
     attributed to this superuser directly (Organization.created_by_superuser_id,
     never created_by_staff_id) -- for onboarding an org, or a standalone
     individual/candidate, yourself rather than through a staff account."""
-    org_name = payload.organization_name.strip()
-    if db.query(Organization).filter_by(name=org_name).one_or_none():
-        raise HTTPException(status_code=409, detail=f"An organization named '{org_name}' already exists.")
     if payload.account_type not in ("agency", "individual"):
         raise HTTPException(status_code=422, detail="account_type must be 'agency' or 'individual'.")
+
+    if payload.account_type == "individual":
+        # A standalone candidate has no agency name to give -- fall back
+        # to their email, which is guaranteed present and effectively
+        # unique, rather than asking them to invent one.
+        org_name = (payload.organization_name or "").strip() or payload.admin_email.strip().lower()
+    else:
+        if not payload.organization_name or not payload.organization_name.strip():
+            raise HTTPException(status_code=422, detail="organization_name is required for agency accounts.")
+        org_name = payload.organization_name.strip()
+
+    if db.query(Organization).filter_by(name=org_name).one_or_none():
+        raise HTTPException(status_code=409, detail=f"An organization named '{org_name}' already exists.")
     if payload.trial_days is not None and payload.trial_days < 0:
         raise HTTPException(status_code=422, detail="trial_days must be zero or positive (or omitted for no trial).")
 
@@ -395,7 +410,12 @@ def create_organization(
     try:
         send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=f"Organization created, but invite email failed to send: {e}")
+        # Nothing sent means nothing should be left behind -- otherwise
+        # this org's name is permanently taken with no invite anyone can
+        # ever redeem, and no way to retry under the same name.
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Could not create organization: invite email failed to send: {e}")
+    db.commit()
 
     return CreateOrganizationResponse(
         organization_id=org.id,

@@ -209,7 +209,7 @@ describe("SuperuserDashboard", () => {
     await waitFor(() => expect(screen.getByText(/invite sent to newstaffer@example\.com/i)).toBeInTheDocument());
   });
 
-  it("creates an organization directly, attributing the superuser as sales person", async () => {
+  it("creates an agency organization directly, attributing the superuser as sales person", async () => {
     api.createOrganization.mockResolvedValue({
       organization_id: 5,
       organization_name: "Solo Jane",
@@ -223,21 +223,55 @@ describe("SuperuserDashboard", () => {
       </MemoryRouter>
     );
 
-    await user.type(screen.getByPlaceholderText("Organization name"), "Solo Jane");
     await user.type(screen.getByPlaceholderText("Admin/candidate email"), "jane@example.com");
-    await user.selectOptions(screen.getByDisplayValue("Agency"), "individual");
+    await user.type(screen.getByPlaceholderText("Organization name"), "Solo Jane");
     await user.click(screen.getByRole("button", { name: /create & send invite/i }));
 
     await waitFor(() =>
       expect(api.createOrganization).toHaveBeenCalledWith({
         organization_name: "Solo Jane",
         admin_email: "jane@example.com",
-        account_type: "individual",
+        account_type: "agency",
         trial_days: 14,
       })
     );
     await waitFor(() =>
       expect(screen.getByText(/'Solo Jane' created — invite sent to jane@example\.com/i)).toBeInTheDocument()
+    );
+  });
+
+  it("disables and clears the organization name field for individual accounts, sending organization_name: null", async () => {
+    api.createOrganization.mockResolvedValue({
+      organization_id: 6,
+      organization_name: "jane@example.com",
+      invited_email: "jane@example.com",
+      trial_expires_at: "2026-08-06",
+    });
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <SuperuserDashboard />
+      </MemoryRouter>
+    );
+
+    const orgNameInput = screen.getByPlaceholderText("Organization name");
+    await user.type(orgNameInput, "Some Name");
+    await user.selectOptions(screen.getByDisplayValue("Agency"), "individual");
+
+    const clearedInput = screen.getByPlaceholderText("Not needed for individual accounts");
+    expect(clearedInput).toBeDisabled();
+    expect(clearedInput.value).toBe("");
+
+    await user.type(screen.getByPlaceholderText("Admin/candidate email"), "jane@example.com");
+    await user.click(screen.getByRole("button", { name: /create & send invite/i }));
+
+    await waitFor(() =>
+      expect(api.createOrganization).toHaveBeenCalledWith({
+        organization_name: null,
+        admin_email: "jane@example.com",
+        account_type: "individual",
+        trial_days: 14,
+      })
     );
   });
 

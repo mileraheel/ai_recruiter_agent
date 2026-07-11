@@ -308,7 +308,7 @@ export default function SuperuserDashboard() {
     setOrgSuccess(null);
     try {
       const res = await api.createOrganization({
-        organization_name: orgName,
+        organization_name: accountType === "individual" ? null : orgName,
         admin_email: adminEmail,
         account_type: accountType,
         trial_days: trialDays === "" ? null : Number(trialDays),
@@ -517,30 +517,24 @@ export default function SuperuserDashboard() {
                 single standalone candidate (one person, self-managed — no separate staffing agency). They'll
                 receive an OTP invite email to set their own password.
               </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  placeholder="Organization name"
-                  required
-                  className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-                />
-                <input
-                  type="email"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  placeholder="Admin/candidate email"
-                  required
-                  className="rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-                />
-              </div>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="Admin/candidate email"
+                required
+                className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              />
               <div className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center gap-2 text-sm text-ink/70">
                   <span>Account type</span>
                   <select
                     value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setAccountType(next);
+                      if (next === "individual") setOrgName("");
+                    }}
                     className="rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
                   >
                     <option value="agency">Agency</option>
@@ -562,6 +556,15 @@ export default function SuperuserDashboard() {
                   {settings ? `Defaults to ${settings.default_trial_days} (set in Configs)` : "Leave blank for no trial expiry"}
                 </span>
               </div>
+              <input
+                type="text"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                placeholder={accountType === "individual" ? "Not needed for individual accounts" : "Organization name"}
+                required={accountType === "agency"}
+                disabled={accountType === "individual"}
+                className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:bg-ink/5 disabled:text-ink/40"
+              />
               <button
                 type="submit"
                 disabled={creatingOrg}

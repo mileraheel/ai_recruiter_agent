@@ -21,7 +21,10 @@ router = APIRouter(prefix="/api/staff", tags=["staff"], dependencies=[Depends(ge
 
 
 class InviteOrganizationRequest(BaseModel):
-    organization_name: str
+    # Required for 'agency', optional for 'individual' (auto-derived
+    # from admin_email if omitted -- a standalone candidate has no
+    # agency name to give).
+    organization_name: str | None = None
     admin_email: EmailStr
     account_type: str = "agency"  # "agency" | "individual"
     trial_days: int | None = DEFAULT_TRIAL_DAYS  # None means no trial expiry
@@ -40,14 +43,23 @@ def invite_organization(
     db: Session = Depends(get_db),
     staff: Staff = Depends(get_current_staff),
 ):
-    org_name = payload.organization_name.strip()
-    if db.query(Organization).filter_by(name=org_name).one_or_none():
-        raise HTTPException(status_code=409, detail=f"An organization named '{org_name}' already exists.")
-
     if payload.account_type not in ("agency", "individual"):
         raise HTTPException(status_code=422, detail="account_type must be 'agency' or 'individual'.")
     if payload.trial_days is not None and payload.trial_days < 0:
         raise HTTPException(status_code=422, detail="trial_days must be zero or positive (or omitted for no trial).")
+
+    if payload.account_type == "individual":
+        # A standalone candidate has no agency name to give -- fall back
+        # to their email, which is guaranteed present and effectively
+        # unique, rather than asking them to invent one.
+        org_name = (payload.organization_name or "").strip() or payload.admin_email.strip().lower()
+    else:
+        if not payload.organization_name or not payload.organization_name.strip():
+            raise HTTPException(status_code=422, detail="organization_name is required for agency accounts.")
+        org_name = payload.organization_name.strip()
+
+    if db.query(Organization).filter_by(name=org_name).one_or_none():
+        raise HTTPException(status_code=409, detail=f"An organization named '{org_name}' already exists.")
 
     org = Organization(name=org_name, created_by_staff_id=staff.id, account_type=payload.account_type)
     set_organization_trial(db, org, payload.trial_days)
@@ -66,11 +78,12 @@ def invite_organization(
     try:
         send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
-        # Org + invite are already committed -- surface the SMTP failure
-        # clearly rather than silently leaving the admin with no way to
-        # know their code, but don't roll back the org/invite (a resend
-        # mechanism, not rebuilt from scratch, is the fix).
-        raise HTTPException(status_code=502, detail=f"Organization created, but invite email failed to send: {e}")
+        # Nothing sent means nothing should be left behind -- otherwise
+        # this org's name is permanently taken with no invite anyone can
+        # ever redeem, and no way to retry under the same name.
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"Could not create organization: invite email failed to send: {e}")
+    db.commit()
 
     return InviteOrganizationResponse(
         organization_id=org.id,
