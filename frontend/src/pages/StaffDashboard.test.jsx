@@ -8,6 +8,8 @@ vi.mock("../api/client.js", () => ({
     listMyOrganizations: vi.fn(),
     inviteOrganization: vi.fn(),
     deactivateOrganization: vi.fn(),
+    getStaffTrialDefault: vi.fn(() => Promise.resolve({ default_trial_days: 14 })),
+    extendMyOrganizationTrial: vi.fn(),
   },
 }));
 
@@ -44,7 +46,7 @@ describe("StaffDashboard", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Acme Staffing")).toBeInTheDocument());
-    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Active" })).toBeInTheDocument();
   });
 
   it("shows an empty state when no organizations have been onboarded yet", async () => {

@@ -14,12 +14,19 @@ from sqlalchemy.orm import Session
 
 from api.auth import authenticate_superuser, create_access_token
 from api.deps import get_current_superuser, get_db
-from api.schemas import OrganizationSummary, PlatformSummary, TokenResponse
+from api.schemas import CandidatePlatformSummary, OrganizationSummary, PlatformSummary, StatusResponse, TokenResponse
 from db.models import AdminUser, Candidate, Email, Interview, Job, Organization, Staff, SuperUser
 from services.email_sender import send_invite_email
 from services.invite_service import create_invite
 from services.rate_limit import check_not_locked, record_failure, record_success
-from services.trial_service import DEFAULT_TRIAL_DAYS, days_remaining, set_organization_trial
+from services.status_service import ACTIVE, TRIAL, get_status_by_code, list_statuses
+from services.trial_service import (
+    DEFAULT_TRIAL_DAYS,
+    days_remaining,
+    extend_candidate_trial,
+    extend_organization_trial,
+    set_organization_trial,
+)
 
 router = APIRouter(tags=["superuser"])
 
@@ -44,7 +51,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.get("/api/superuser/reports/summary", response_model=PlatformSummary, dependencies=[Depends(get_current_superuser)])
 def platform_summary(db: Session = Depends(get_db)):
+    from db.models import Status
+
     orgs = db.query(Organization).order_by(Organization.created_at.asc()).all()
+    statuses_by_id = {s.id: s for s in db.query(Status).all()}
 
     org_summaries = []
     total_candidates = 0
@@ -92,6 +102,9 @@ def platform_summary(db: Session = Depends(get_db)):
                 sales_person=sales_person,
                 trial_expires_at=org.trial_expires_at,
                 trial_days_remaining=days_remaining(org.trial_expires_at),
+                is_active=org.is_active,
+                status_code=statuses_by_id[org.status_id].code if org.status_id in statuses_by_id else None,
+                status_label=statuses_by_id[org.status_id].label if org.status_id in statuses_by_id else None,
             )
         )
         total_candidates += candidate_count
@@ -232,10 +245,12 @@ def list_pending_invites(db: Session = Depends(get_db)):
 
 class PlatformSettingsResponse(BaseModel):
     invite_expire_days: int
+    default_trial_days: int
 
 
 class PlatformSettingsUpdate(BaseModel):
     invite_expire_days: int
+    default_trial_days: int
 
 
 @router.get(
@@ -248,7 +263,9 @@ def get_platform_settings(db: Session = Depends(get_db)):
 
     settings = get_or_create_platform_settings(db)
     db.commit()
-    return PlatformSettingsResponse(invite_expire_days=settings.invite_expire_days)
+    return PlatformSettingsResponse(
+        invite_expire_days=settings.invite_expire_days, default_trial_days=settings.default_trial_days
+    )
 
 
 @router.put(
@@ -261,11 +278,25 @@ def update_platform_settings(payload: PlatformSettingsUpdate, db: Session = Depe
 
     if payload.invite_expire_days < 1:
         raise HTTPException(status_code=422, detail="invite_expire_days must be at least 1.")
+    if payload.default_trial_days < 0:
+        raise HTTPException(status_code=422, detail="default_trial_days must be zero or positive.")
 
     settings = get_or_create_platform_settings(db)
     settings.invite_expire_days = payload.invite_expire_days
+    settings.default_trial_days = payload.default_trial_days
     db.commit()
-    return PlatformSettingsResponse(invite_expire_days=settings.invite_expire_days)
+    return PlatformSettingsResponse(
+        invite_expire_days=settings.invite_expire_days, default_trial_days=settings.default_trial_days
+    )
+
+
+@router.get(
+    "/api/superuser/statuses",
+    response_model=list[StatusResponse],
+    dependencies=[Depends(get_current_superuser)],
+)
+def list_platform_statuses(db: Session = Depends(get_db)):
+    return [StatusResponse(id=s.id, code=s.code, label=s.label) for s in list_statuses(db)]
 
 
 class CreateOrganizationRequest(BaseModel):
@@ -309,6 +340,9 @@ def create_organization(
 
     org = Organization(name=org_name, created_by_superuser_id=superuser.id, account_type=payload.account_type)
     set_organization_trial(db, org, payload.trial_days)
+    # A trial gets the "trial" status; a real paid account created with
+    # no trial (trial_days=None) starts "active" instead.
+    org.status_id = get_status_by_code(db, TRIAL if payload.trial_days is not None else ACTIVE).id
     db.add(org)
     db.flush()
 
@@ -330,6 +364,146 @@ def create_organization(
         invited_email=payload.admin_email,
         trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
     )
+
+
+class ExtendTrialRequest(BaseModel):
+    additional_days: int
+
+
+class OrganizationTrialResponse(BaseModel):
+    organization_id: int
+    trial_expires_at: str | None
+    trial_days_remaining: int | None
+
+
+@router.put(
+    "/api/superuser/organizations/{organization_id}/trial",
+    response_model=OrganizationTrialResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def extend_organization_trial_endpoint(
+    organization_id: int, payload: ExtendTrialRequest, db: Session = Depends(get_db)
+):
+    """Superuser can extend any organization's trial (no ownership
+    restriction, unlike the staff equivalent -- see api/routers/staff.py)."""
+    if payload.additional_days <= 0:
+        raise HTTPException(status_code=422, detail="additional_days must be positive.")
+    org = db.query(Organization).filter_by(id=organization_id).one_or_none()
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    extend_organization_trial(db, org, payload.additional_days)
+    db.commit()
+    return OrganizationTrialResponse(
+        organization_id=org.id,
+        trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
+        trial_days_remaining=days_remaining(org.trial_expires_at),
+    )
+
+
+class ChangeStatusRequest(BaseModel):
+    status_code: str
+
+
+@router.put(
+    "/api/superuser/organizations/{organization_id}/status",
+    response_model=StatusResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def change_organization_status(organization_id: int, payload: ChangeStatusRequest, db: Session = Depends(get_db)):
+    org = db.query(Organization).filter_by(id=organization_id).one_or_none()
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    try:
+        status_row = get_status_by_code(db, payload.status_code)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Unknown status code '{payload.status_code}'.")
+    org.status_id = status_row.id
+    db.commit()
+    return StatusResponse(id=status_row.id, code=status_row.code, label=status_row.label)
+
+
+@router.put(
+    "/api/superuser/candidates/{candidate_id}/status",
+    response_model=StatusResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def change_candidate_status(candidate_id: int, payload: ChangeStatusRequest, db: Session = Depends(get_db)):
+    candidate = db.query(Candidate).filter_by(id=candidate_id).one_or_none()
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found.")
+    try:
+        status_row = get_status_by_code(db, payload.status_code)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Unknown status code '{payload.status_code}'.")
+    candidate.status_id = status_row.id
+    db.commit()
+    return StatusResponse(id=status_row.id, code=status_row.code, label=status_row.label)
+
+
+class CandidateTrialResponse(BaseModel):
+    candidate_id: int
+    trial_expires_at: str | None
+    trial_days_remaining: int | None
+
+
+@router.put(
+    "/api/superuser/candidates/{candidate_id}/trial",
+    response_model=CandidateTrialResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def extend_candidate_trial_endpoint(candidate_id: int, payload: ExtendTrialRequest, db: Session = Depends(get_db)):
+    if payload.additional_days <= 0:
+        raise HTTPException(status_code=422, detail="additional_days must be positive.")
+    candidate = db.query(Candidate).filter_by(id=candidate_id).one_or_none()
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found.")
+    sub = extend_candidate_trial(db, candidate, payload.additional_days)
+    db.commit()
+    return CandidateTrialResponse(
+        candidate_id=candidate.id,
+        trial_expires_at=sub.current_period_end.isoformat() if sub.current_period_end else None,
+        trial_days_remaining=days_remaining(sub.current_period_end),
+    )
+
+
+@router.get(
+    "/api/superuser/candidates",
+    response_model=list[CandidatePlatformSummary],
+    dependencies=[Depends(get_current_superuser)],
+)
+def list_all_candidates(db: Session = Depends(get_db)):
+    """Every candidate platform-wide, across every organization -- the
+    candidate-level equivalent of /api/superuser/reports/summary's
+    organization list, so a superuser can browse and act on (status,
+    trial) any candidate without going through that candidate's org."""
+    from db.models import Status, Subscription
+
+    candidates = db.query(Candidate).order_by(Candidate.created_at.desc()).all()
+    orgs_by_id = {o.id: o for o in db.query(Organization).all()}
+    statuses_by_id = {s.id: s for s in db.query(Status).all()}
+    subs_by_candidate_id = {s.candidate_id: s for s in db.query(Subscription).all()}
+
+    results = []
+    for c in candidates:
+        org = orgs_by_id.get(c.organization_id)
+        sub = subs_by_candidate_id.get(c.id)
+        status_row = statuses_by_id.get(c.status_id)
+        results.append(
+            CandidatePlatformSummary(
+                candidate_id=c.id,
+                full_name=c.full_name,
+                organization_id=c.organization_id,
+                organization_name=org.name if org else "(unknown)",
+                login_email=c.login_email,
+                availability_status=c.availability_status,
+                status_code=status_row.code if status_row else None,
+                status_label=status_row.label if status_row else None,
+                trial_expires_at=sub.current_period_end if sub else None,
+                trial_days_remaining=days_remaining(sub.current_period_end) if sub else None,
+                created_at=c.created_at,
+            )
+        )
+    return results
 
 
 class TrialReminderRunResponse(BaseModel):

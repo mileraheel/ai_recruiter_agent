@@ -17,6 +17,7 @@ from api.deps import get_db
 from api.schemas import TokenResponse
 from config.schema import slugify_name
 from db.models import AdminUser, Candidate, Invite, Organization, Staff
+from services.status_service import TRIAL, get_status_by_code
 
 router = APIRouter(prefix="/api/invite", tags=["invite"])
 
@@ -97,6 +98,7 @@ def register_via_invite(payload: InviteRegisterRequest, db: Session = Depends(ge
                 full_name=payload.full_name,
                 login_email=email,
                 profile_status="no_account",
+                status_id=get_status_by_code(db, TRIAL).id,
             )
             db.add(linked_candidate)
             db.flush()
@@ -139,6 +141,7 @@ def register_via_invite(payload: InviteRegisterRequest, db: Session = Depends(ge
             login_email=email,
             password_hash=hash_password(payload.password),
             profile_status="no_account",
+            status_id=get_status_by_code(db, TRIAL).id,
         )
         db.add(account)
         db.flush()

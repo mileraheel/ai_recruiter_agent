@@ -10,6 +10,7 @@ from api.schemas import CandidateLoginRequest, CandidateSignupRequest, TokenResp
 from config.schema import slugify_name
 from db.models import Candidate, Organization
 from services.rate_limit import check_not_locked, record_failure, record_success
+from services.status_service import TRIAL, get_status_by_code
 
 router = APIRouter(prefix="/api/candidate-auth", tags=["candidate-auth"])
 
@@ -55,6 +56,7 @@ def signup(payload: CandidateSignupRequest, db: Session = Depends(get_db)):
         login_email=login_email,
         password_hash=hash_password(payload.password),
         profile_status="no_account",  # not yet submitted a profile
+        status_id=get_status_by_code(db, TRIAL).id,
     )
     db.add(candidate)
     db.commit()

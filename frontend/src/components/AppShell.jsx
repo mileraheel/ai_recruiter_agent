@@ -78,7 +78,7 @@ export default function AppShell() {
           <span className="font-display text-lg font-bold tracking-tight">{APP_NAME}</span>
         </div>
         <div className="flex items-center gap-3">
-          <NavLink to="/admin/profile" className="text-xs font-medium text-ink/50 underline">
+          <NavLink to="/admin/profile" className="text-xs font-medium text-ink/50">
             Profile
           </NavLink>
           <button onClick={logout} className="text-xs font-medium text-ink/50">

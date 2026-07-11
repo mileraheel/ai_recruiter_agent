@@ -176,6 +176,8 @@ def email_account_status(owner: tuple[str, int] = Depends(get_current_email_acco
         "account_email": row.account_email,
         "smtp_host": row.smtp_host,
         "smtp_port": row.smtp_port,
+        "imap_host": row.imap_host,
+        "imap_port": row.imap_port,
         "smtp_username": row.smtp_username,
         "scopes_granted": row.scopes_granted,
         "status": row.status,
@@ -205,8 +207,10 @@ def disconnect_email_account(owner: tuple[str, int] = Depends(get_current_email_
 
 
 class SmtpConnectRequest(BaseModel):
-    host: str
-    port: int
+    smtp_host: str
+    smtp_port: int
+    imap_host: str
+    imap_port: int
     username: str
     account_email: EmailStr
     password: str
@@ -218,10 +222,13 @@ def connect_smtp(
     owner: tuple[str, int] = Depends(get_current_email_account_owner),
     db: Session = Depends(get_db),
 ):
-    """Manual-entry fallback for providers without OAuth2. The password
-    is encrypted at rest (same mechanism as the Gmail refresh token) and
-    is never returned by /status or any other response -- once saved,
-    there is no API that reads it back out in plaintext or ciphertext."""
+    """Manual-entry fallback for providers without OAuth2 -- captures
+    both directions (SMTP for sending, IMAP for the future reply-reading
+    phase), one shared username/password authenticating both, per
+    EmailAccountCredential's docstring. The password is encrypted at
+    rest (same mechanism as the Gmail refresh token) and is never
+    returned by /status or any other response -- once saved, there is
+    no API that reads it back out in plaintext or ciphertext."""
     owner_type, owner_id = owner
     existing = (
         db.query(EmailAccountCredential)
@@ -233,8 +240,10 @@ def connect_smtp(
         db.add(existing)
 
     existing.account_email = payload.account_email
-    existing.smtp_host = payload.host
-    existing.smtp_port = payload.port
+    existing.smtp_host = payload.smtp_host
+    existing.smtp_port = payload.smtp_port
+    existing.imap_host = payload.imap_host
+    existing.imap_port = payload.imap_port
     existing.smtp_username = payload.username
     existing.secret_type = "app_password"
     existing.encrypted_secret = encrypt_secret(payload.password)

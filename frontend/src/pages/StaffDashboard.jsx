@@ -4,7 +4,7 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import DataTable from "../components/DataTable";
 
-const ORG_COLUMNS = (onDeactivate) => [
+const ORG_COLUMNS = (onDeactivate, onExtendTrial) => [
   {
     key: "organization_name",
     label: "Organization",
@@ -31,7 +31,7 @@ const ORG_COLUMNS = (onDeactivate) => [
   },
   {
     key: "is_active",
-    label: "Status",
+    label: "Active",
     sortValue: (r) => (r.is_active ? 1 : 0),
     filterValue: (r) => (r.is_active ? "active" : "deactivated"),
     render: (r) => (
@@ -45,14 +45,31 @@ const ORG_COLUMNS = (onDeactivate) => [
     ),
   },
   {
+    key: "status",
+    label: "Status",
+    sortValue: (r) => r.status_label || "",
+    filterValue: (r) => r.status_label,
+    render: (r) => (
+      <span className="text-xs rounded-full px-2 py-0.5 font-medium bg-ink/5 text-ink/70">
+        {r.status_label || "—"}
+      </span>
+    ),
+  },
+  {
     key: "actions",
     label: "",
-    render: (r) =>
-      r.is_active && (
-        <button onClick={() => onDeactivate(r.organization_id, r.organization_name)} className="text-xs font-medium text-danger">
-          Deactivate
+    render: (r) => (
+      <div className="flex items-center gap-3">
+        <button onClick={() => onExtendTrial(r.organization_id, r.organization_name)} className="text-xs font-medium text-accent">
+          Extend trial
         </button>
-      ),
+        {r.is_active && (
+          <button onClick={() => onDeactivate(r.organization_id, r.organization_name)} className="text-xs font-medium text-danger">
+            Deactivate
+          </button>
+        )}
+      </div>
+    ),
   },
 ];
 
@@ -65,6 +82,7 @@ export default function StaffDashboard() {
   const [adminEmail, setAdminEmail] = useState("");
   const [accountType, setAccountType] = useState("agency");
   const [trialDays, setTrialDays] = useState("14");
+  const [defaultTrialDays, setDefaultTrialDays] = useState(null);
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState(null);
   const [inviteSuccess, setInviteSuccess] = useState(null);
@@ -80,6 +98,13 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     load();
+    api
+      .getStaffTrialDefault()
+      .then((s) => {
+        setDefaultTrialDays(s.default_trial_days);
+        setTrialDays(String(s.default_trial_days));
+      })
+      .catch(() => {});
   }, []);
 
   async function handleInvite(e) {
@@ -101,7 +126,7 @@ export default function StaffDashboard() {
       setOrgName("");
       setAdminEmail("");
       setAccountType("agency");
-      setTrialDays("14");
+      setTrialDays(defaultTrialDays !== null ? String(defaultTrialDays) : "14");
       await load();
     } catch (err) {
       setInviteError(err.detail || "Failed to create organization");
@@ -122,12 +147,25 @@ export default function StaffDashboard() {
     }
   }
 
+  async function handleExtendTrial(organizationId, organizationName) {
+    const input = window.prompt(`Extend trial for '${organizationName}' by how many days?`, "14");
+    if (!input) return;
+    const days = Number(input);
+    if (!Number.isFinite(days) || days <= 0) return;
+    try {
+      await api.extendMyOrganizationTrial(organizationId, days);
+      await load();
+    } catch (e) {
+      setError(e.detail || "Failed to extend trial");
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Organizations you've onboarded</h1>
         <div className="flex items-center gap-3">
-          <Link to="/staff/profile" className="text-xs font-medium text-ink/50 underline">
+          <Link to="/staff/profile" className="text-xs font-medium text-ink/50">
             Update profile
           </Link>
           <button onClick={logout} className="text-xs font-medium text-ink/50">
@@ -177,7 +215,9 @@ export default function StaffDashboard() {
             placeholder="e.g. 14"
             className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
           />
-          <span className="text-xs text-ink/40">Leave blank for no trial expiry</span>
+          <span className="text-xs text-ink/40">
+            {defaultTrialDays !== null ? `Defaults to ${defaultTrialDays}` : "Leave blank for no trial expiry"}
+          </span>
         </label>
         <button
           type="submit"
@@ -195,7 +235,7 @@ export default function StaffDashboard() {
       {error && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{error}</div>}
 
       <DataTable
-        columns={ORG_COLUMNS(handleDeactivate)}
+        columns={ORG_COLUMNS(handleDeactivate, handleExtendTrial)}
         rows={orgs || []}
         rowKey={(r) => r.organization_id}
         emptyMessage="No organizations onboarded yet."

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import EmailAccountCard from "../components/EmailAccountCard";
@@ -75,6 +76,10 @@ export default function StaffProfile() {
           Log out
         </button>
       </div>
+
+      <Link to="/staff/dashboard" className="text-xs font-medium underline text-ink/50">
+        ← Back to dashboard
+      </Link>
 
       <EmailAccountCard />
 

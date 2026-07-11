@@ -26,40 +26,87 @@ function TabButton({ active, onClick, children }) {
   );
 }
 
-const ORG_COLUMNS = [
-  {
-    key: "organization_name",
-    label: "Organization",
-    sortValue: (r) => r.organization_name?.toLowerCase() || "",
-    filterValue: (r) => r.organization_name,
-    render: (r) => <span className="font-medium">{r.organization_name}</span>,
-  },
-  {
-    key: "sales_person",
-    label: "Sales person",
-    sortValue: (r) => r.sales_person?.toLowerCase() || "",
-    filterValue: (r) => r.sales_person,
-    render: (r) => <span className="text-xs text-ink/60">{r.sales_person || "—"}</span>,
-  },
-  { key: "candidate_count", label: "Candidates", sortValue: (r) => r.candidate_count, filterValue: (r) => r.candidate_count },
-  { key: "admin_count", label: "Admins", sortValue: (r) => r.admin_count, filterValue: (r) => r.admin_count },
-  { key: "jobs_posted", label: "Jobs", sortValue: (r) => r.jobs_posted, filterValue: (r) => r.jobs_posted },
-  { key: "applications_sent", label: "Sent", sortValue: (r) => r.applications_sent, filterValue: (r) => r.applications_sent },
-  { key: "interviews_scheduled", label: "Interviews", sortValue: (r) => r.interviews_scheduled, filterValue: (r) => r.interviews_scheduled },
-  {
-    key: "trial",
-    label: "Trial",
-    sortValue: (r) => (r.trial_days_remaining === null || r.trial_days_remaining === undefined ? null : r.trial_days_remaining),
-    filterValue: (r) => r.trial_expires_at,
-    render: (r) => (
-      <span className="text-xs">
-        {r.trial_expires_at
-          ? `${r.trial_expires_at}${r.trial_days_remaining !== null && r.trial_days_remaining !== undefined ? ` (${r.trial_days_remaining}d)` : ""}`
-          : "—"}
-      </span>
-    ),
-  },
-];
+// Fires the change immediately on selection -- a superuser adjusting an
+// account's status is a single deliberate action, not a form field that
+// needs a separate "save" step.
+function StatusSelect({ statusCode, statuses, onChange }) {
+  return (
+    <select
+      value={statusCode || ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-ink/15 px-2 py-1 text-xs bg-paper"
+    >
+      {!statusCode && <option value="">—</option>}
+      {statuses.map((s) => (
+        <option key={s.code} value={s.code}>
+          {s.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function orgColumns(statuses, onChangeStatus, onExtendTrial) {
+  return [
+    {
+      key: "organization_name",
+      label: "Organization",
+      sortValue: (r) => r.organization_name?.toLowerCase() || "",
+      filterValue: (r) => r.organization_name,
+      render: (r) => <span className="font-medium">{r.organization_name}</span>,
+    },
+    {
+      key: "sales_person",
+      label: "Sales person",
+      sortValue: (r) => r.sales_person?.toLowerCase() || "",
+      filterValue: (r) => r.sales_person,
+      render: (r) => <span className="text-xs text-ink/60">{r.sales_person || "—"}</span>,
+    },
+    { key: "candidate_count", label: "Candidates", sortValue: (r) => r.candidate_count, filterValue: (r) => r.candidate_count },
+    { key: "admin_count", label: "Admins", sortValue: (r) => r.admin_count, filterValue: (r) => r.admin_count },
+    { key: "jobs_posted", label: "Jobs", sortValue: (r) => r.jobs_posted, filterValue: (r) => r.jobs_posted },
+    { key: "applications_sent", label: "Sent", sortValue: (r) => r.applications_sent, filterValue: (r) => r.applications_sent },
+    { key: "interviews_scheduled", label: "Interviews", sortValue: (r) => r.interviews_scheduled, filterValue: (r) => r.interviews_scheduled },
+    {
+      key: "trial",
+      label: "Trial",
+      sortValue: (r) => (r.trial_days_remaining === null || r.trial_days_remaining === undefined ? null : r.trial_days_remaining),
+      filterValue: (r) => r.trial_expires_at,
+      render: (r) => (
+        <span className="text-xs">
+          {r.trial_expires_at
+            ? `${r.trial_expires_at}${r.trial_days_remaining !== null && r.trial_days_remaining !== undefined ? ` (${r.trial_days_remaining}d)` : ""}`
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortValue: (r) => r.status_label || "",
+      filterValue: (r) => r.status_label,
+      render: (r) => (
+        <StatusSelect
+          statusCode={r.status_code}
+          statuses={statuses}
+          onChange={(code) => onChangeStatus(r.organization_id, code)}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (r) => (
+        <button
+          onClick={() => onExtendTrial(r.organization_id, r.organization_name)}
+          className="text-xs font-medium text-accent"
+        >
+          Extend trial
+        </button>
+      ),
+    },
+  ];
+}
 
 const STAFF_COLUMNS = [
   { key: "username", label: "Username", sortValue: (r) => r.username?.toLowerCase() || "", filterValue: (r) => r.username, render: (r) => <span className="font-medium">{r.username}</span> },
@@ -84,13 +131,71 @@ const INVITE_COLUMNS = [
   { key: "attempts", label: "Attempts", sortValue: (r) => r.attempts, filterValue: (r) => `${r.attempts}/${r.max_attempts}`, render: (r) => `${r.attempts}/${r.max_attempts}` },
 ];
 
+function candidateColumns(statuses, onChangeStatus, onExtendTrial) {
+  return [
+    {
+      key: "full_name",
+      label: "Candidate",
+      sortValue: (r) => r.full_name?.toLowerCase() || "",
+      filterValue: (r) => r.full_name,
+      render: (r) => <span className="font-medium">{r.full_name}</span>,
+    },
+    {
+      key: "organization_name",
+      label: "Organization",
+      sortValue: (r) => r.organization_name?.toLowerCase() || "",
+      filterValue: (r) => r.organization_name,
+      render: (r) => r.organization_name || "— (standalone)",
+    },
+    { key: "login_email", label: "Login email", sortValue: (r) => r.login_email?.toLowerCase() || "", filterValue: (r) => r.login_email },
+    { key: "availability_status", label: "Availability", sortValue: (r) => r.availability_status, filterValue: (r) => r.availability_status },
+    {
+      key: "trial",
+      label: "Trial",
+      sortValue: (r) => (r.trial_days_remaining === null || r.trial_days_remaining === undefined ? null : r.trial_days_remaining),
+      filterValue: (r) => r.trial_expires_at,
+      render: (r) => (
+        <span className="text-xs">
+          {r.trial_expires_at
+            ? `${r.trial_expires_at}${r.trial_days_remaining !== null && r.trial_days_remaining !== undefined ? ` (${r.trial_days_remaining}d)` : ""}`
+            : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortValue: (r) => r.status_label || "",
+      filterValue: (r) => r.status_label,
+      render: (r) => (
+        <StatusSelect
+          statusCode={r.status_code}
+          statuses={statuses}
+          onChange={(code) => onChangeStatus(r.candidate_id, code)}
+        />
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      render: (r) => (
+        <button onClick={() => onExtendTrial(r.candidate_id, r.full_name)} className="text-xs font-medium text-accent">
+          Extend trial
+        </button>
+      ),
+    },
+  ];
+}
+
 export default function SuperuserDashboard() {
   const { logout } = useAuth();
-  const [tab, setTab] = useState("manage"); // "manage" | "reports"
+  const [tab, setTab] = useState("manage"); // "manage" | "reports" | "configs"
 
   const [summary, setSummary] = useState(null);
   const [staffList, setStaffList] = useState(null);
   const [pendingInvites, setPendingInvites] = useState(null);
+  const [candidates, setCandidates] = useState(null);
+  const [statuses, setStatuses] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState(null);
   const [reportsLoadedOnce, setReportsLoadedOnce] = useState(false);
@@ -109,31 +214,40 @@ export default function SuperuserDashboard() {
   const [orgSuccess, setOrgSuccess] = useState(null);
 
   const [inviteExpireDays, setInviteExpireDays] = useState(null);
+  const [defaultTrialDays, setDefaultTrialDays] = useState(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(null);
 
   useEffect(() => {
-    // Cheap single-row fetch needed for the default-visible Manage tab's
-    // settings form -- unlike the Reports tab's heavier data (org list,
-    // staff performance, pending invites), which only loads when that
-    // tab is actually opened, this is negligible enough to just load
-    // once on mount.
-    api.getPlatformSettings().then((s) => setInviteExpireDays(s.invite_expire_days)).catch(() => {});
+    // Cheap fetches needed regardless of which tab is active -- settings
+    // feed both the Configs tab and the trial-days default on the org
+    // creation form, statuses feed the status dropdowns on Reports.
+    api
+      .getPlatformSettings()
+      .then((s) => {
+        setInviteExpireDays(s.invite_expire_days);
+        setDefaultTrialDays(s.default_trial_days);
+        setTrialDays(String(s.default_trial_days));
+      })
+      .catch(() => {});
+    api.listStatuses().then(setStatuses).catch(() => {});
   }, []);
 
   async function loadReports() {
     setReportsLoading(true);
     setReportsError(null);
     try {
-      const [summaryRes, staffRes, invitesRes] = await Promise.all([
+      const [summaryRes, staffRes, invitesRes, candidatesRes] = await Promise.all([
         api.getPlatformSummary(),
         api.getStaffPerformance(),
         api.listPendingInvites(),
+        api.listAllCandidatesPlatformWide(),
       ]);
       setSummary(summaryRes);
       setStaffList(staffRes);
       setPendingInvites(invitesRes);
+      setCandidates(candidatesRes);
       setReportsLoadedOnce(true);
     } catch (e) {
       setReportsError(e.detail || "Failed to load reports");
@@ -186,7 +300,7 @@ export default function SuperuserDashboard() {
       setOrgName("");
       setAdminEmail("");
       setAccountType("agency");
-      setTrialDays("14");
+      setTrialDays(defaultTrialDays !== null ? String(defaultTrialDays) : "14");
       if (reportsLoadedOnce) loadReports();
     } catch (err) {
       setOrgError(err.detail || "Failed to create organization");
@@ -201,13 +315,65 @@ export default function SuperuserDashboard() {
     setSettingsError(null);
     setSettingsSuccess(null);
     try {
-      const res = await api.updatePlatformSettings({ invite_expire_days: Number(inviteExpireDays) });
+      const res = await api.updatePlatformSettings({
+        invite_expire_days: Number(inviteExpireDays),
+        default_trial_days: Number(defaultTrialDays),
+      });
       setInviteExpireDays(res.invite_expire_days);
-      setSettingsSuccess("Saved. New invites will use this expiry going forward.");
+      setDefaultTrialDays(res.default_trial_days);
+      setSettingsSuccess("Saved. New invites/organizations will use these values going forward.");
     } catch (err) {
       setSettingsError(err.detail || "Failed to save settings");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  async function handleChangeOrgStatus(organizationId, statusCode) {
+    setReportsError(null);
+    try {
+      await api.changeOrganizationStatus(organizationId, statusCode);
+      await loadReports();
+    } catch (e) {
+      setReportsError(e.detail || "Failed to change status");
+    }
+  }
+
+  async function handleExtendOrgTrial(organizationId, organizationName) {
+    const input = window.prompt(`Extend trial for '${organizationName}' by how many days?`, "14");
+    if (!input) return;
+    const days = Number(input);
+    if (!Number.isFinite(days) || days <= 0) return;
+    setReportsError(null);
+    try {
+      await api.extendOrganizationTrial(organizationId, days);
+      await loadReports();
+    } catch (e) {
+      setReportsError(e.detail || "Failed to extend trial");
+    }
+  }
+
+  async function handleChangeCandidateStatus(candidateId, statusCode) {
+    setReportsError(null);
+    try {
+      await api.changeCandidateStatus(candidateId, statusCode);
+      await loadReports();
+    } catch (e) {
+      setReportsError(e.detail || "Failed to change status");
+    }
+  }
+
+  async function handleExtendCandidateTrial(candidateId, candidateName) {
+    const input = window.prompt(`Extend trial for '${candidateName}' by how many days?`, "14");
+    if (!input) return;
+    const days = Number(input);
+    if (!Number.isFinite(days) || days <= 0) return;
+    setReportsError(null);
+    try {
+      await api.extendCandidateTrial(candidateId, days);
+      await loadReports();
+    } catch (e) {
+      setReportsError(e.detail || "Failed to extend trial");
     }
   }
 
@@ -216,7 +382,7 @@ export default function SuperuserDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Platform overview</h1>
         <div className="flex items-center gap-3">
-          <Link to="/superuser/profile" className="text-xs font-medium text-ink/50 underline">
+          <Link to="/superuser/profile" className="text-xs font-medium text-ink/50">
             Update profile
           </Link>
           <button onClick={logout} className="text-xs font-medium text-ink/50">
@@ -231,6 +397,9 @@ export default function SuperuserDashboard() {
         </TabButton>
         <TabButton active={tab === "reports"} onClick={handleReportsTabClick}>
           Reports
+        </TabButton>
+        <TabButton active={tab === "configs"} onClick={() => setTab("configs")}>
+          Configs
         </TabButton>
       </div>
 
@@ -265,13 +434,25 @@ export default function SuperuserDashboard() {
               <div>
                 <h2 className="text-sm font-semibold tracking-tight mb-2">Organizations</h2>
                 <DataTable
-                  columns={ORG_COLUMNS}
+                  columns={orgColumns(statuses, handleChangeOrgStatus, handleExtendOrgTrial)}
                   rows={summary.organizations}
                   rowKey={(r) => r.organization_id}
                   emptyMessage="No organizations yet."
                 />
               </div>
             </>
+          )}
+
+          {candidates && (
+            <div>
+              <h2 className="text-sm font-semibold tracking-tight mb-2">Candidates (platform-wide)</h2>
+              <DataTable
+                columns={candidateColumns(statuses, handleChangeCandidateStatus, handleExtendCandidateTrial)}
+                rows={candidates}
+                rowKey={(r) => r.candidate_id}
+                emptyMessage="No candidates yet."
+              />
+            </div>
           )}
 
           {staffList && (
@@ -352,7 +533,9 @@ export default function SuperuserDashboard() {
                     className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
                   />
                 </label>
-                <span className="text-xs text-ink/40">Leave blank for no trial expiry</span>
+                <span className="text-xs text-ink/40">
+                  {defaultTrialDays !== null ? `Defaults to ${defaultTrialDays} (set in Configs)` : "Leave blank for no trial expiry"}
+                </span>
               </div>
               <button
                 type="submit"
@@ -397,30 +580,56 @@ export default function SuperuserDashboard() {
               )}
             </form>
           </div>
+        </div>
+      )}
 
+      {tab === "configs" && (
+        <div className="space-y-6">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Platform settings</h2>
-            <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-3">
-              <p className="text-sm font-medium">Invite expiry</p>
-              <p className="text-xs text-ink/50">
-                How long an OTP invite (staff, organization, or candidate) stays valid before it
-                expires. Applies to every new invite sent from now on — doesn't change invites
-                already sent.
-              </p>
-              <label className="flex items-center gap-2 text-sm text-ink/70">
-                <span>Days</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={inviteExpireDays ?? ""}
-                  onChange={(e) => setInviteExpireDays(e.target.value)}
-                  placeholder="e.g. 7"
-                  className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
-                />
-              </label>
+            <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium">Invite expiry</p>
+                <p className="text-xs text-ink/50 mb-2">
+                  How long an OTP invite (staff, organization, or candidate) stays valid before it
+                  expires. Applies to every new invite sent from now on — doesn't change invites
+                  already sent.
+                </p>
+                <label className="flex items-center gap-2 text-sm text-ink/70">
+                  <span>Days</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={inviteExpireDays ?? ""}
+                    onChange={(e) => setInviteExpireDays(e.target.value)}
+                    placeholder="e.g. 7"
+                    className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Default free trial</p>
+                <p className="text-xs text-ink/50 mb-2">
+                  Pre-fills the "Free trial (days)" field whenever you or a staff member onboards a
+                  new organization or standalone candidate — they can still override it per account.
+                </p>
+                <label className="flex items-center gap-2 text-sm text-ink/70">
+                  <span>Days</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={defaultTrialDays ?? ""}
+                    onChange={(e) => setDefaultTrialDays(e.target.value)}
+                    placeholder="e.g. 14"
+                    className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+                  />
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={savingSettings || inviteExpireDays === null}
+                disabled={savingSettings || inviteExpireDays === null || defaultTrialDays === null}
                 className="btn btn-primary btn-small disabled:opacity-50"
               >
                 {savingSettings ? "Saving…" : "Save"}
@@ -430,6 +639,22 @@ export default function SuperuserDashboard() {
                 <div className="rounded-lg bg-accentSoft text-accent text-sm px-3 py-2">{settingsSuccess}</div>
               )}
             </form>
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold tracking-tight">Account statuses</h2>
+            <p className="text-xs text-ink/50">
+              The full set of statuses organizations and candidates can be in. Changed from the
+              Reports tab, per account.
+            </p>
+            <div className="rounded-xl border border-ink/10 p-4 flex flex-wrap gap-2">
+              {statuses.length === 0 && <p className="text-xs text-ink/40">Loading…</p>}
+              {statuses.map((s) => (
+                <span key={s.code} className="text-xs rounded-full px-2.5 py-1 font-medium bg-ink/5 text-ink/70">
+                  {s.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -24,7 +24,16 @@ load_dotenv()
 
 from config.loader import load_config
 from db.session import get_session_factory
-from db.models import JobSource
+from db.models import JobSource, Status
+
+# code -> label. Order matters only for display; extending this set
+# later is just adding a row, no schema change (see db/models.py::Status).
+STARTING_STATUSES = [
+    ("trial", "Trial"),
+    ("extended_trial", "Extended Trial"),
+    ("active", "Active"),
+    ("suspended", "Suspended"),
+]
 
 
 def seed_sources_from_config(session, cfg) -> list[str]:
@@ -45,6 +54,22 @@ def seed_sources_from_config(session, cfg) -> list[str]:
     return seeded
 
 
+def seed_statuses(session) -> list[str]:
+    """Idempotent, same pattern as seed_sources_from_config -- updates
+    the label if a code already exists rather than creating duplicates."""
+    seeded = []
+    for code, label in STARTING_STATUSES:
+        existing = session.query(Status).filter_by(code=code).one_or_none()
+        if existing is None:
+            existing = Status(code=code, label=label)
+            session.add(existing)
+        else:
+            existing.label = label
+        seeded.append(code)
+    session.commit()
+    return seeded
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed baseline reference data")
     parser.add_argument("--config", default="config/candidate.yaml")
@@ -54,7 +79,9 @@ def main() -> None:
     SessionFactory = get_session_factory()
     with SessionFactory() as session:
         seeded_sources = seed_sources_from_config(session, cfg)
+        seeded_statuses = seed_statuses(session)
     print(f"Seeded/updated {len(seeded_sources)} job_sources rows: {seeded_sources}")
+    print(f"Seeded/updated {len(seeded_statuses)} status rows: {seeded_statuses}")
 
 
 if __name__ == "__main__":

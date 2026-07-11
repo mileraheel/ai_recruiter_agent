@@ -8,8 +8,14 @@ vi.mock("../api/client.js", () => ({
     getPlatformSummary: vi.fn(),
     getStaffPerformance: vi.fn(),
     listPendingInvites: vi.fn(),
-    getPlatformSettings: vi.fn(),
+    listAllCandidatesPlatformWide: vi.fn(() => Promise.resolve([])),
+    getPlatformSettings: vi.fn(() => Promise.resolve({ invite_expire_days: 7, default_trial_days: 14 })),
     updatePlatformSettings: vi.fn(),
+    listStatuses: vi.fn(() => Promise.resolve([])),
+    changeOrganizationStatus: vi.fn(),
+    extendOrganizationTrial: vi.fn(),
+    changeCandidateStatus: vi.fn(),
+    extendCandidateTrial: vi.fn(),
     inviteStaff: vi.fn(),
     createOrganization: vi.fn(),
   },
@@ -49,7 +55,7 @@ function setDefaultMocks() {
   api.getPlatformSummary.mockResolvedValue(SAMPLE_SUMMARY);
   api.getStaffPerformance.mockResolvedValue([]);
   api.listPendingInvites.mockResolvedValue([]);
-  api.getPlatformSettings.mockResolvedValue({ invite_expire_days: 7 });
+  api.getPlatformSettings.mockResolvedValue({ invite_expire_days: 7, default_trial_days: 14 });
 }
 
 describe("SuperuserDashboard", () => {
@@ -243,7 +249,7 @@ describe("SuperuserDashboard", () => {
   });
 
   it("saves updated invite-expiry platform settings", async () => {
-    api.updatePlatformSettings.mockResolvedValue({ invite_expire_days: 10 });
+    api.updatePlatformSettings.mockResolvedValue({ invite_expire_days: 10, default_trial_days: 14 });
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -252,13 +258,16 @@ describe("SuperuserDashboard", () => {
     );
 
     await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled());
+    await user.click(screen.getByRole("button", { name: "Configs" }));
     const daysInput = await screen.findByDisplayValue("7");
     await user.clear(daysInput);
     await user.type(daysInput, "10");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
-    await waitFor(() => expect(api.updatePlatformSettings).toHaveBeenCalledWith({ invite_expire_days: 10 }));
-    await waitFor(() => expect(screen.getByText(/new invites will use this expiry/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(api.updatePlatformSettings).toHaveBeenCalledWith({ invite_expire_days: 10, default_trial_days: 14 })
+    );
+    await waitFor(() => expect(screen.getByText(/new invites\/organizations will use these values/i)).toBeInTheDocument());
   });
 
   it("shows pending invites in the reports tab", async () => {

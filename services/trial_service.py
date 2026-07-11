@@ -27,9 +27,22 @@ from sqlalchemy.orm import Session
 from db.models import AdminUser, Candidate, Organization, Subscription
 from services.email_sender import send_trial_reminder_email
 
+# Fallback only -- used before PlatformSettings has ever been read/written
+# (get_default_trial_days below is the real source of truth once a
+# settings row exists, which get_or_create_platform_settings guarantees
+# on first access anyway).
 DEFAULT_TRIAL_DAYS = 14
 BANNER_WINDOW_DAYS = 7  # show the in-app "expiring soon" banner within this many days
 REMINDER_WINDOW_DAYS = 2  # send the actual reminder EMAIL this many days before expiry (or sooner)
+
+
+def get_default_trial_days(session: Session) -> int:
+    """The superuser-configurable default new org-creation forms
+    pre-fill (PlatformSettings.default_trial_days) -- staff/superuser
+    can still type a different number per org at creation time."""
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    return get_or_create_platform_settings(session).default_trial_days
 
 
 def days_remaining(expires_at: date | None, today: date | None = None) -> int | None:
@@ -64,6 +77,33 @@ def set_candidate_trial(session: Session, candidate: Candidate, trial_days: int 
         sub.current_period_end = None
     else:
         sub.current_period_end = datetime.now(timezone.utc).date() + timedelta(days=trial_days)
+    sub.trial_reminder_sent_at = None
+    return sub
+
+
+def extend_organization_trial(session: Session, org: Organization, additional_days: int) -> Organization:
+    """Adds days on top of whatever's there -- distinct from
+    set_organization_trial (an absolute reset used only at org-creation
+    time). Extends from the LATER of today or the current expiry, so
+    extending an already-lapsed trial starts counting from today (not
+    from a stale past date), while extending a still-active trial adds
+    cleanly onto the end of it rather than shortening it."""
+    today = datetime.now(timezone.utc).date()
+    base = org.trial_expires_at if (org.trial_expires_at and org.trial_expires_at > today) else today
+    org.trial_expires_at = base + timedelta(days=additional_days)
+    org.trial_reminder_sent_at = None
+    return org
+
+
+def extend_candidate_trial(session: Session, candidate: Candidate, additional_days: int) -> Subscription:
+    """Candidate equivalent of extend_organization_trial -- see its
+    docstring for the "extend from later of today/current expiry" logic."""
+    from services.billing_service import get_or_create_subscription
+
+    sub = get_or_create_subscription(session, candidate)
+    today = datetime.now(timezone.utc).date()
+    base = sub.current_period_end if (sub.current_period_end and sub.current_period_end > today) else today
+    sub.current_period_end = base + timedelta(days=additional_days)
     sub.trial_reminder_sent_at = None
     return sub
 

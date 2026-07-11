@@ -239,6 +239,9 @@ export const api = {
   listMyOrganizations: () => request("/staff/organizations"),
   deactivateOrganization: (organizationId) =>
     request(`/staff/organizations/${organizationId}`, { method: "DELETE" }),
+  extendMyOrganizationTrial: (organizationId, additionalDays) =>
+    request(`/staff/organizations/${organizationId}/trial`, { method: "PUT", body: { additional_days: additionalDays } }),
+  getStaffTrialDefault: () => request("/staff/trial-default"),
 
   // Superuser invites staff (OTP-based, same as every other invite -- see redeemInvite)
   inviteStaff: (email) => request("/superuser/staff/invite", { method: "POST", body: { email } }),
@@ -246,6 +249,16 @@ export const api = {
   listPendingInvites: () => request("/superuser/invites/pending"),
   getPlatformSettings: () => request("/superuser/settings"),
   updatePlatformSettings: (payload) => request("/superuser/settings", { method: "PUT", body: payload }),
+  listStatuses: () => request("/superuser/statuses"),
+  extendOrganizationTrial: (organizationId, additionalDays) =>
+    request(`/superuser/organizations/${organizationId}/trial`, { method: "PUT", body: { additional_days: additionalDays } }),
+  changeOrganizationStatus: (organizationId, statusCode) =>
+    request(`/superuser/organizations/${organizationId}/status`, { method: "PUT", body: { status_code: statusCode } }),
+  extendCandidateTrial: (candidateId, additionalDays) =>
+    request(`/superuser/candidates/${candidateId}/trial`, { method: "PUT", body: { additional_days: additionalDays } }),
+  changeCandidateStatus: (candidateId, statusCode) =>
+    request(`/superuser/candidates/${candidateId}/status`, { method: "PUT", body: { status_code: statusCode } }),
+  listAllCandidatesPlatformWide: () => request("/superuser/candidates"),
 
   // Generic OTP invite redemption -- used by staff, admin, and candidate
   // invites alike; the invite's own role/organization decide what's

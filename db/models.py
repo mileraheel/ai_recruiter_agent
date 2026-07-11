@@ -162,6 +162,25 @@ class PushSubscription(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class Status(Base):
+    """Shared account-status vocabulary for Organization and Candidate
+    (trial, extended_trial, active, suspended, ...) -- a lookup table
+    rather than a hardcoded string/enum so a superuser can see the full
+    set and the app can grow it without a schema change. Seeded by
+    db/seed.py. Distinct from Candidate.profile_status (admin-review
+    workflow state) and Candidate.availability_status (job-search
+    intent) -- this one specifically tracks account/billing standing,
+    superuser-controlled, not automatically transitioned by any
+    trial-expiry logic today (see trial_service.py's extend_trial_days,
+    which changes dates but never touches status_id itself)."""
+    __tablename__ = "statuses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Organization(Base):
     """A 'corporate' -- one staffing agency/recruiter's tenant. Every
     Candidate and AdminUser belongs to exactly one. This is the hard
@@ -172,6 +191,7 @@ class Organization(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    status_id: Mapped[int | None] = mapped_column(ForeignKey("statuses.id"))
     created_by_staff_id: Mapped[int | None] = mapped_column(ForeignKey("staff.id"))
     # A superuser can also onboard an organization directly (skipping
     # the staff-invite flow entirely) -- exactly one of
@@ -295,11 +315,14 @@ class EmailAccountCredential(Base):
     email-sending/monitoring service, immediately before an API call,
     never logged or persisted decrypted.
 
-    scopes_granted anticipates the future email-monitoring/auto-reply/
-    calendar phase (read inbox, send replies, manage interview events)
-    so this schema doesn't need to change when that phase is built --
-    this table only covers connect/store/disconnect; the monitoring
-    loop itself is a separate, later piece of work.
+    scopes_granted (Gmail) and imap_host/imap_port (SMTP fallback)
+    anticipate the future email-monitoring/auto-reply/calendar phase
+    (read inbox, send replies, manage interview events) so this schema
+    doesn't need to change when that phase is built -- this table only
+    covers connect/store/disconnect; the monitoring loop itself
+    (matching an inbound reply to a sent Email row, feeding "no reply"
+    into services/followup_service.py) is a separate, later piece of
+    work -- credentials are captured now, the poller isn't built yet.
     """
     __tablename__ = "email_account_credentials"
     __table_args__ = (UniqueConstraint("owner_type", "owner_id", "provider"),)
@@ -310,9 +333,16 @@ class EmailAccountCredential(Base):
     provider: Mapped[str] = mapped_column(String, nullable=False)  # "gmail" | "microsoft" | "smtp" | "other"
     account_email: Mapped[str] = mapped_column(String, nullable=False)
     # Only set when provider="smtp" -- the manual-entry fallback path.
+    # One username/password authenticates both directions (standard for
+    # every mainstream provider -- Gmail app passwords, Zoho, Outlook,
+    # etc. -- so encrypted_secret below is shared, not duplicated per
+    # protocol); only the host/port genuinely differ between sending
+    # (SMTP) and reading (IMAP).
     smtp_host: Mapped[str | None] = mapped_column(String)
     smtp_port: Mapped[int | None] = mapped_column(Integer)
     smtp_username: Mapped[str | None] = mapped_column(String)
+    imap_host: Mapped[str | None] = mapped_column(String)
+    imap_port: Mapped[int | None] = mapped_column(Integer)
     secret_type: Mapped[str] = mapped_column(String, nullable=False)  # "oauth_refresh_token" | "app_password"
     encrypted_secret: Mapped[str] = mapped_column(Text, nullable=False)
     scopes_granted: Mapped[list[str] | None] = mapped_column(JSON)
@@ -382,6 +412,10 @@ class Candidate(Base):
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False)
     slug: Mapped[str] = mapped_column(String, index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String, nullable=False)
+    # Account/billing standing (trial, extended_trial, active, suspended,
+    # ...) -- see Status's docstring for how this differs from
+    # profile_status and availability_status below.
+    status_id: Mapped[int | None] = mapped_column(ForeignKey("statuses.id"))
     # Job-search intent -- separate concept from Subscription.status
     # (billing). A candidate can be actively subscribed/billed but
     # temporarily not looking (between contracts, on a project, etc.);
@@ -837,6 +871,10 @@ class PlatformSettings(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     invite_expire_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    # The trial length new org-creation forms pre-fill (staff/superuser
+    # can still type a different number per org) -- was a hardcoded
+    # constant (trial_service.DEFAULT_TRIAL_DAYS) until now.
+    default_trial_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

@@ -8,7 +8,14 @@ from api.deps import get_current_staff, get_db
 from db.models import AdminUser, Candidate, Job, Organization, Staff
 from services.email_sender import send_invite_email
 from services.invite_service import create_invite
-from services.trial_service import DEFAULT_TRIAL_DAYS, days_remaining, set_organization_trial
+from services.status_service import ACTIVE, TRIAL, get_status_by_code
+from services.trial_service import (
+    DEFAULT_TRIAL_DAYS,
+    days_remaining,
+    extend_organization_trial,
+    get_default_trial_days,
+    set_organization_trial,
+)
 
 router = APIRouter(prefix="/api/staff", tags=["staff"], dependencies=[Depends(get_current_staff)])
 
@@ -44,6 +51,7 @@ def invite_organization(
 
     org = Organization(name=org_name, created_by_staff_id=staff.id, account_type=payload.account_type)
     set_organization_trial(db, org, payload.trial_days)
+    org.status_id = get_status_by_code(db, TRIAL if payload.trial_days is not None else ACTIVE).id
     db.add(org)
     db.flush()
 
@@ -83,15 +91,21 @@ class StaffOrganizationSummary(BaseModel):
     created_at: str
     trial_expires_at: str | None = None
     trial_days_remaining: int | None = None
+    status_code: str | None = None
+    status_label: str | None = None
 
 
 @router.get("/organizations", response_model=list[StaffOrganizationSummary])
 def list_my_organizations(db: Session = Depends(get_db), staff: Staff = Depends(get_current_staff)):
     """Orgs THIS staff member created -- their own onboarding activity,
     the basis for sales-performance / future revenue attribution."""
+    from db.models import Status
+
     orgs = db.query(Organization).filter_by(created_by_staff_id=staff.id).order_by(Organization.created_at.desc()).all()
+    statuses_by_id = {s.id: s for s in db.query(Status).all()}
     results = []
     for org in orgs:
+        status_row = statuses_by_id.get(org.status_id)
         results.append(
             StaffOrganizationSummary(
                 organization_id=org.id,
@@ -104,9 +118,52 @@ def list_my_organizations(db: Session = Depends(get_db), staff: Staff = Depends(
                 created_at=org.created_at.isoformat(),
                 trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
                 trial_days_remaining=days_remaining(org.trial_expires_at),
+                status_code=status_row.code if status_row else None,
+                status_label=status_row.label if status_row else None,
             )
         )
     return results
+
+
+class StaffExtendTrialRequest(BaseModel):
+    additional_days: int
+
+
+class StaffOrganizationTrialResponse(BaseModel):
+    organization_id: int
+    trial_expires_at: str | None
+    trial_days_remaining: int | None
+
+
+@router.put("/organizations/{organization_id}/trial", response_model=StaffOrganizationTrialResponse)
+def extend_my_organization_trial(
+    organization_id: int,
+    payload: StaffExtendTrialRequest,
+    db: Session = Depends(get_db),
+    staff: Staff = Depends(get_current_staff),
+):
+    """Staff can only extend trials for organizations THEY created --
+    same ownership check as deactivate_organization below."""
+    if payload.additional_days <= 0:
+        raise HTTPException(status_code=422, detail="additional_days must be positive.")
+    org = db.query(Organization).filter_by(id=organization_id).one_or_none()
+    if org is None or org.created_by_staff_id != staff.id:
+        raise HTTPException(status_code=404, detail="Organization not found.")
+    extend_organization_trial(db, org, payload.additional_days)
+    db.commit()
+    return StaffOrganizationTrialResponse(
+        organization_id=org.id,
+        trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
+        trial_days_remaining=days_remaining(org.trial_expires_at),
+    )
+
+
+@router.get("/trial-default")
+def get_trial_default(db: Session = Depends(get_db)):
+    """Read-only -- lets the org-creation form pre-fill trial_days with
+    the superuser-configured default without giving staff access to the
+    rest of /api/superuser/settings."""
+    return {"default_trial_days": get_default_trial_days(db)}
 
 
 @router.delete("/organizations/{organization_id}")

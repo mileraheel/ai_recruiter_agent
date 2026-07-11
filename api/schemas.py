@@ -300,6 +300,29 @@ class OrganizationSummary(BaseModel):
     sales_person: str | None = None  # staff username, or "superuser: <username>" if onboarded directly
     trial_expires_at: date | None = None
     trial_days_remaining: int | None = None
+    is_active: bool = True
+    status_code: str | None = None
+    status_label: str | None = None
+
+
+class StatusResponse(BaseModel):
+    id: int
+    code: str
+    label: str
+
+
+class CandidatePlatformSummary(BaseModel):
+    candidate_id: int
+    full_name: str
+    organization_id: int
+    organization_name: str
+    login_email: str | None = None
+    availability_status: str
+    status_code: str | None = None
+    status_label: str | None = None
+    trial_expires_at: date | None = None
+    trial_days_remaining: int | None = None
+    created_at: datetime
 
 
 class PlatformSummary(BaseModel):

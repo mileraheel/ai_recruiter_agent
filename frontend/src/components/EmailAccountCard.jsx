@@ -11,11 +11,18 @@ export default function EmailAccountCard() {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [showSmtpForm, setShowSmtpForm] = useState(false);
+
+  // One username/password authenticates both directions for every
+  // mainstream provider (Gmail app passwords, Zoho, Outlook, ...) --
+  // only host/port genuinely differ between sending (SMTP) and reading
+  // (IMAP), so those are the only fields duplicated per direction.
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("");
-  const [smtpUsername, setSmtpUsername] = useState("");
-  const [smtpEmail, setSmtpEmail] = useState("");
-  const [smtpPassword, setSmtpPassword] = useState(""); // never pre-filled -- write-only
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState("");
+  const [username, setUsername] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [password, setPassword] = useState(""); // never pre-filled -- write-only
   const [savingSmtp, setSavingSmtp] = useState(false);
 
   useEffect(() => {
@@ -49,18 +56,20 @@ export default function EmailAccountCard() {
     setError(null);
     try {
       await api.connectSmtp({
-        host: smtpHost,
-        port: Number(smtpPort),
-        username: smtpUsername,
-        account_email: smtpEmail,
-        password: smtpPassword,
+        smtp_host: smtpHost,
+        smtp_port: Number(smtpPort),
+        imap_host: imapHost,
+        imap_port: Number(imapPort),
+        username,
+        account_email: accountEmail,
+        password,
       });
-      setSmtpPassword(""); // never keep it in memory longer than the request
+      setPassword(""); // never keep it in memory longer than the request
       setShowSmtpForm(false);
       const status = await api.getEmailAccountStatus();
       setEmailAccount(status);
     } catch (e) {
-      setError(e.detail || "Failed to save SMTP details");
+      setError(e.detail || "Failed to save email account details");
     } finally {
       setSavingSmtp(false);
     }
@@ -75,15 +84,16 @@ export default function EmailAccountCard() {
         )}
       </div>
       <p className="text-xs text-ink/50">
-        Connect the account RolePace will send applications and outreach from — Gmail (recommended)
-        or any provider's SMTP details. You can disconnect anytime; a Gmail connection also revokes
-        access on Google's side.
+        Connect the account RolePace will send applications/outreach from — and read replies to
+        them from, once that part of the app is live. Gmail (recommended) or any provider's
+        connection details. You can disconnect anytime; a Gmail connection also revokes access on
+        Google's side.
       </p>
 
       {emailAccount?.connected ? (
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs rounded-full px-2.5 py-1 font-medium bg-accentSoft text-accent">
-            Connected via {emailAccount.provider === "smtp" ? "SMTP" : "Gmail"}: {emailAccount.account_email}
+            Connected via {emailAccount.provider === "smtp" ? "SMTP/IMAP" : "Gmail"}: {emailAccount.account_email}
           </span>
           <button onClick={handleDisconnect} className="text-xs font-medium text-danger underline">
             Disconnect
@@ -104,77 +114,115 @@ export default function EmailAccountCard() {
               onClick={() => setShowSmtpForm((s) => !s)}
               className="text-xs font-medium text-ink/50 underline"
             >
-              {showSmtpForm ? "Cancel" : "Or enter SMTP details manually"}
+              {showSmtpForm ? "Cancel" : "Or enter connection details manually"}
             </button>
           </div>
 
           {showSmtpForm && (
-            <form onSubmit={handleSmtpSubmit} className="space-y-2.5 pt-2 border-t border-ink/10">
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-medium text-ink/60 mb-1">SMTP host</label>
-                  <input
-                    type="text"
-                    value={smtpHost}
-                    onChange={(e) => setSmtpHost(e.target.value)}
-                    placeholder="smtp.example.com"
-                    required
-                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
-                  />
+            <form onSubmit={handleSmtpSubmit} className="space-y-3 pt-2 border-t border-ink/10">
+              <div>
+                <p className="text-xs font-semibold text-ink/70 mb-2">Outgoing (SMTP) — sending</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Host</label>
+                    <input
+                      type="text"
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="smtppro.example.com"
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Port</label>
+                    <input
+                      type="number"
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(e.target.value)}
+                      placeholder="465"
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-ink/60 mb-1">Port</label>
-                  <input
-                    type="number"
-                    value={smtpPort}
-                    onChange={(e) => setSmtpPort(e.target.value)}
-                    placeholder="587"
-                    required
-                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
-                  />
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-ink/70 mb-2">Incoming (IMAP) — reading replies</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Host</label>
+                    <input
+                      type="text"
+                      value={imapHost}
+                      onChange={(e) => setImapHost(e.target.value)}
+                      placeholder="imappro.example.com"
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Port</label>
+                    <input
+                      type="number"
+                      value={imapPort}
+                      onChange={(e) => setImapPort(e.target.value)}
+                      placeholder="993"
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-ink/60 mb-1">Sending email address</label>
-                <input
-                  type="email"
-                  value={smtpEmail}
-                  onChange={(e) => setSmtpEmail(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
-                />
+                <p className="text-xs font-semibold text-ink/70 mb-2">Account (used for both)</p>
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Sending/receiving email address</label>
+                    <input
+                      type="email"
+                      value={accountEmail}
+                      onChange={(e) => setAccountEmail(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Username</label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink/60 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="new-password"
+                      required
+                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-ink/60 mb-1">SMTP username</label>
-                <input
-                  type="text"
-                  value={smtpUsername}
-                  onChange={(e) => setSmtpUsername(e.target.value)}
-                  required
-                  className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-ink/60 mb-1">SMTP password</label>
-                <input
-                  type="password"
-                  value={smtpPassword}
-                  onChange={(e) => setSmtpPassword(e.target.value)}
-                  autoComplete="new-password"
-                  required
-                  className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
-                />
-              </div>
+
               <p className="rounded-lg bg-accentSoft text-accent text-xs px-3 py-2 font-medium">
                 🔒 This password is encrypted before it's stored. No one — including RolePace staff —
-                can ever view or retrieve it again; it's used only to send on your behalf.
+                can ever view or retrieve it again; it's used only to send and read on your behalf.
               </p>
               <button
                 type="submit"
                 disabled={savingSmtp}
                 className="w-full btn btn-primary btn-small disabled:opacity-50"
               >
-                {savingSmtp ? "Saving…" : "Save SMTP details"}
+                {savingSmtp ? "Saving…" : "Save connection details"}
               </button>
             </form>
           )}
