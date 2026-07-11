@@ -13,6 +13,24 @@ function StatCard({ label, value }) {
   );
 }
 
+function SettingField({ label, hint, value, onChange, min }) {
+  return (
+    <div>
+      <label className="flex items-center gap-2 text-sm text-ink/70">
+        <span className="w-72 shrink-0">{label}</span>
+        <input
+          type="number"
+          min={min}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+        />
+      </label>
+      {hint && <p className="text-xs text-ink/40 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
 function TabButton({ active, onClick, children }) {
   return (
     <button
@@ -213,8 +231,7 @@ export default function SuperuserDashboard() {
   const [orgError, setOrgError] = useState(null);
   const [orgSuccess, setOrgSuccess] = useState(null);
 
-  const [inviteExpireDays, setInviteExpireDays] = useState(null);
-  const [defaultTrialDays, setDefaultTrialDays] = useState(null);
+  const [settings, setSettings] = useState(null); // all 8 PlatformSettings fields, or null until loaded
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(null);
@@ -226,13 +243,16 @@ export default function SuperuserDashboard() {
     api
       .getPlatformSettings()
       .then((s) => {
-        setInviteExpireDays(s.invite_expire_days);
-        setDefaultTrialDays(s.default_trial_days);
+        setSettings(s);
         setTrialDays(String(s.default_trial_days));
       })
       .catch(() => {});
     api.listStatuses().then(setStatuses).catch(() => {});
   }, []);
+
+  function setSettingField(field, value) {
+    setSettings((s) => ({ ...s, [field]: value }));
+  }
 
   async function loadReports() {
     setReportsLoading(true);
@@ -300,7 +320,7 @@ export default function SuperuserDashboard() {
       setOrgName("");
       setAdminEmail("");
       setAccountType("agency");
-      setTrialDays(defaultTrialDays !== null ? String(defaultTrialDays) : "14");
+      setTrialDays(settings ? String(settings.default_trial_days) : "14");
       if (reportsLoadedOnce) loadReports();
     } catch (err) {
       setOrgError(err.detail || "Failed to create organization");
@@ -316,11 +336,16 @@ export default function SuperuserDashboard() {
     setSettingsSuccess(null);
     try {
       const res = await api.updatePlatformSettings({
-        invite_expire_days: Number(inviteExpireDays),
-        default_trial_days: Number(defaultTrialDays),
+        invite_expire_days: Number(settings.invite_expire_days),
+        default_trial_days: Number(settings.default_trial_days),
+        otp_expire_minutes: Number(settings.otp_expire_minutes),
+        login_lockout_max_attempts: Number(settings.login_lockout_max_attempts),
+        login_lockout_minutes: Number(settings.login_lockout_minutes),
+        invite_max_attempts: Number(settings.invite_max_attempts),
+        trial_banner_window_days: Number(settings.trial_banner_window_days),
+        trial_reminder_window_days: Number(settings.trial_reminder_window_days),
       });
-      setInviteExpireDays(res.invite_expire_days);
-      setDefaultTrialDays(res.default_trial_days);
+      setSettings(res);
       setSettingsSuccess("Saved. New invites/organizations will use these values going forward.");
     } catch (err) {
       setSettingsError(err.detail || "Failed to save settings");
@@ -534,7 +559,7 @@ export default function SuperuserDashboard() {
                   />
                 </label>
                 <span className="text-xs text-ink/40">
-                  {defaultTrialDays !== null ? `Defaults to ${defaultTrialDays} (set in Configs)` : "Leave blank for no trial expiry"}
+                  {settings ? `Defaults to ${settings.default_trial_days} (set in Configs)` : "Leave blank for no trial expiry"}
                 </span>
               </div>
               <button
@@ -587,49 +612,84 @@ export default function SuperuserDashboard() {
         <div className="space-y-6">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Platform settings</h2>
-            <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-4">
+            <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-5">
               <div>
-                <p className="text-sm font-medium">Invite expiry</p>
-                <p className="text-xs text-ink/50 mb-2">
-                  How long an OTP invite (staff, organization, or candidate) stays valid before it
-                  expires. Applies to every new invite sent from now on — doesn't change invites
-                  already sent.
-                </p>
-                <label className="flex items-center gap-2 text-sm text-ink/70">
-                  <span>Days</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={inviteExpireDays ?? ""}
-                    onChange={(e) => setInviteExpireDays(e.target.value)}
-                    placeholder="e.g. 7"
-                    className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+                <p className="text-xs font-semibold text-ink/70 mb-2">Invites & onboarding</p>
+                <div className="space-y-3">
+                  <SettingField
+                    label="Invite expiry (days)"
+                    hint="How long an OTP invite (staff, organization, or candidate) stays valid before it expires. Applies to every new invite sent from now on — doesn't change invites already sent."
+                    min={1}
+                    value={settings?.invite_expire_days}
+                    onChange={(v) => setSettingField("invite_expire_days", v)}
                   />
-                </label>
+                  <SettingField
+                    label="Default free trial (days)"
+                    hint={'Pre-fills the "Free trial (days)" field whenever you or a staff member onboards a new organization or standalone candidate — they can still override it per account.'}
+                    min={0}
+                    value={settings?.default_trial_days}
+                    onChange={(v) => setSettingField("default_trial_days", v)}
+                  />
+                  <SettingField
+                    label="Invite OTP max attempts"
+                    hint="How many wrong codes an invite OTP tolerates before it's dead and a fresh invite must be sent."
+                    min={1}
+                    value={settings?.invite_max_attempts}
+                    onChange={(v) => setSettingField("invite_max_attempts", v)}
+                  />
+                </div>
               </div>
 
               <div>
-                <p className="text-sm font-medium">Default free trial</p>
-                <p className="text-xs text-ink/50 mb-2">
-                  Pre-fills the "Free trial (days)" field whenever you or a staff member onboards a
-                  new organization or standalone candidate — they can still override it per account.
-                </p>
-                <label className="flex items-center gap-2 text-sm text-ink/70">
-                  <span>Days</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={defaultTrialDays ?? ""}
-                    onChange={(e) => setDefaultTrialDays(e.target.value)}
-                    placeholder="e.g. 14"
-                    className="w-24 rounded-lg border border-ink/15 px-2 py-1.5 text-sm"
+                <p className="text-xs font-semibold text-ink/70 mb-2">Security</p>
+                <div className="space-y-3">
+                  <SettingField
+                    label="Password-reset code expiry (minutes)"
+                    hint="How long a password-reset OTP stays valid after it's emailed."
+                    min={1}
+                    value={settings?.otp_expire_minutes}
+                    onChange={(v) => setSettingField("otp_expire_minutes", v)}
                   />
-                </label>
+                  <SettingField
+                    label="Login lockout after (attempts)"
+                    hint="Staff/superuser logins, and the fallback for admin/candidate accounts with no organization yet. Org-scoped logins use each organization's own lockout policy instead."
+                    min={1}
+                    value={settings?.login_lockout_max_attempts}
+                    onChange={(v) => setSettingField("login_lockout_max_attempts", v)}
+                  />
+                  <SettingField
+                    label="Login lockout duration (minutes)"
+                    hint="How long the account stays locked out once the attempt limit above is hit."
+                    min={1}
+                    value={settings?.login_lockout_minutes}
+                    onChange={(v) => setSettingField("login_lockout_minutes", v)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-ink/70 mb-2">Trial notifications</p>
+                <div className="space-y-3">
+                  <SettingField
+                    label={'In-app "expiring soon" banner (days before expiry)'}
+                    hint="A signed-in admin/candidate sees a short-lived banner once their trial is within this many days of expiring."
+                    min={0}
+                    value={settings?.trial_banner_window_days}
+                    onChange={(v) => setSettingField("trial_banner_window_days", v)}
+                  />
+                  <SettingField
+                    label="Reminder email lead time (days before expiry)"
+                    hint="A one-time reminder email goes out once a trial is within this many days of expiring."
+                    min={0}
+                    value={settings?.trial_reminder_window_days}
+                    onChange={(v) => setSettingField("trial_reminder_window_days", v)}
+                  />
+                </div>
               </div>
 
               <button
                 type="submit"
-                disabled={savingSettings || inviteExpireDays === null || defaultTrialDays === null}
+                disabled={savingSettings || !settings}
                 className="btn btn-primary btn-small disabled:opacity-50"
               >
                 {savingSettings ? "Saving…" : "Save"}

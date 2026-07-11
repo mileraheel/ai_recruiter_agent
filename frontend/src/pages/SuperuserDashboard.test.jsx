@@ -51,11 +51,22 @@ const SAMPLE_SUMMARY = {
   ],
 };
 
+const SAMPLE_SETTINGS = {
+  invite_expire_days: 7,
+  default_trial_days: 14,
+  otp_expire_minutes: 30,
+  login_lockout_max_attempts: 5,
+  login_lockout_minutes: 15,
+  invite_max_attempts: 5,
+  trial_banner_window_days: 7,
+  trial_reminder_window_days: 2,
+};
+
 function setDefaultMocks() {
   api.getPlatformSummary.mockResolvedValue(SAMPLE_SUMMARY);
   api.getStaffPerformance.mockResolvedValue([]);
   api.listPendingInvites.mockResolvedValue([]);
-  api.getPlatformSettings.mockResolvedValue({ invite_expire_days: 7, default_trial_days: 14 });
+  api.getPlatformSettings.mockResolvedValue(SAMPLE_SETTINGS);
 }
 
 describe("SuperuserDashboard", () => {
@@ -249,7 +260,7 @@ describe("SuperuserDashboard", () => {
   });
 
   it("saves updated invite-expiry platform settings", async () => {
-    api.updatePlatformSettings.mockResolvedValue({ invite_expire_days: 10, default_trial_days: 14 });
+    api.updatePlatformSettings.mockResolvedValue({ ...SAMPLE_SETTINGS, invite_expire_days: 10 });
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -259,13 +270,13 @@ describe("SuperuserDashboard", () => {
 
     await waitFor(() => expect(api.getPlatformSettings).toHaveBeenCalled());
     await user.click(screen.getByRole("button", { name: "Configs" }));
-    const daysInput = await screen.findByDisplayValue("7");
+    const daysInput = await screen.findByText("Invite expiry (days)").then((label) => label.closest("label").querySelector("input"));
     await user.clear(daysInput);
     await user.type(daysInput, "10");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
     await waitFor(() =>
-      expect(api.updatePlatformSettings).toHaveBeenCalledWith({ invite_expire_days: 10, default_trial_days: 14 })
+      expect(api.updatePlatformSettings).toHaveBeenCalledWith({ ...SAMPLE_SETTINGS, invite_expire_days: 10 })
     );
     await waitFor(() => expect(screen.getByText(/new invites\/organizations will use these values/i)).toBeInTheDocument());
   });

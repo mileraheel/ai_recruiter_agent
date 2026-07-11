@@ -26,7 +26,7 @@ describe("TrialBanner", () => {
 
   it("shows the banner for an admin whose org trial expires within 7 days", async () => {
     mockUseAuth.mockReturnValue({ role: "admin" });
-    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3 });
+    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3, trial_banner_window_days: 7 });
 
     render(<TrialBanner />);
 
@@ -37,7 +37,7 @@ describe("TrialBanner", () => {
 
   it("shows the banner for a candidate using getMySubscription instead of getOrgSettings", async () => {
     mockUseAuth.mockReturnValue({ role: "candidate" });
-    api.getMySubscription.mockResolvedValue({ trial_expires_at: "2026-07-08", trial_days_remaining: 1 });
+    api.getMySubscription.mockResolvedValue({ trial_expires_at: "2026-07-08", trial_days_remaining: 1, trial_banner_window_days: 7 });
 
     render(<TrialBanner />);
 
@@ -48,7 +48,7 @@ describe("TrialBanner", () => {
 
   it("does not show anything when trial_days_remaining is more than 7 days out", async () => {
     mockUseAuth.mockReturnValue({ role: "admin" });
-    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-08-01", trial_days_remaining: 25 });
+    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-08-01", trial_days_remaining: 25, trial_banner_window_days: 7 });
 
     render(<TrialBanner />);
 
@@ -77,7 +77,7 @@ describe("TrialBanner", () => {
 
   it("shows an already-expired message when days remaining is negative", async () => {
     mockUseAuth.mockReturnValue({ role: "admin" });
-    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-01", trial_days_remaining: -2 });
+    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-01", trial_days_remaining: -2, trial_banner_window_days: 7 });
 
     render(<TrialBanner />);
 
@@ -86,7 +86,7 @@ describe("TrialBanner", () => {
 
   it("can be dismissed manually before the auto-dismiss timer fires", async () => {
     mockUseAuth.mockReturnValue({ role: "admin" });
-    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3 });
+    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3, trial_banner_window_days: 7 });
     const user = userEvent.setup();
 
     render(<TrialBanner />);
@@ -98,7 +98,7 @@ describe("TrialBanner", () => {
 
   it("only fetches once per session -- does not re-show on a second mount without a logout", async () => {
     mockUseAuth.mockReturnValue({ role: "admin" });
-    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3 });
+    api.getOrgSettings.mockResolvedValue({ trial_expires_at: "2026-07-10", trial_days_remaining: 3, trial_banner_window_days: 7 });
 
     const { unmount } = render(<TrialBanner />);
     await waitFor(() => expect(screen.getByRole("status")).toBeInTheDocument());

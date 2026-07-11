@@ -35,6 +35,11 @@ class OrganizationSettingsResponse(BaseModel):
     # could otherwise just extend their own trial).
     trial_expires_at: str | None = None
     trial_days_remaining: int | None = None
+    # Platform-wide, not org-specific -- how close to expiry
+    # TrialBanner.jsx should start showing the in-app banner. Included
+    # here (rather than a separate endpoint) since this is the response
+    # TrialBanner.jsx already fetches for admins.
+    trial_banner_window_days: int
 
 
 class OrganizationSettingsUpdate(BaseModel):
@@ -56,7 +61,9 @@ class OrganizationSettingsUpdate(BaseModel):
     business_hours_timezone: str | None = None
 
 
-def _to_response(org) -> "OrganizationSettingsResponse":
+def _to_response(org, db: Session) -> "OrganizationSettingsResponse":
+    from services.trial_service import get_trial_banner_window_days
+
     return OrganizationSettingsResponse(
         organization_name=org.name,
         account_type=org.account_type,
@@ -78,13 +85,14 @@ def _to_response(org) -> "OrganizationSettingsResponse":
         business_hours_timezone=org.business_hours_timezone,
         trial_expires_at=org.trial_expires_at.isoformat() if org.trial_expires_at else None,
         trial_days_remaining=days_remaining(org.trial_expires_at),
+        trial_banner_window_days=get_trial_banner_window_days(db),
     )
 
 
 @router.get("/settings", response_model=OrganizationSettingsResponse)
 def get_settings(db: Session = Depends(get_db), admin: AdminUser = Depends(get_current_admin)):
     org = db.query(Organization).filter_by(id=admin.organization_id).one()
-    return _to_response(org)
+    return _to_response(org, db)
 
 
 @router.put("/settings", response_model=OrganizationSettingsResponse)
@@ -113,4 +121,4 @@ def update_settings(
             setattr(org, field, value)
 
     db.commit()
-    return _to_response(org)
+    return _to_response(org, db)

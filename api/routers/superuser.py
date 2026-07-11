@@ -246,11 +246,36 @@ def list_pending_invites(db: Session = Depends(get_db)):
 class PlatformSettingsResponse(BaseModel):
     invite_expire_days: int
     default_trial_days: int
+    otp_expire_minutes: int
+    login_lockout_max_attempts: int
+    login_lockout_minutes: int
+    invite_max_attempts: int
+    trial_banner_window_days: int
+    trial_reminder_window_days: int
 
 
 class PlatformSettingsUpdate(BaseModel):
     invite_expire_days: int
     default_trial_days: int
+    otp_expire_minutes: int
+    login_lockout_max_attempts: int
+    login_lockout_minutes: int
+    invite_max_attempts: int
+    trial_banner_window_days: int
+    trial_reminder_window_days: int
+
+
+def _platform_settings_response(settings) -> "PlatformSettingsResponse":
+    return PlatformSettingsResponse(
+        invite_expire_days=settings.invite_expire_days,
+        default_trial_days=settings.default_trial_days,
+        otp_expire_minutes=settings.otp_expire_minutes,
+        login_lockout_max_attempts=settings.login_lockout_max_attempts,
+        login_lockout_minutes=settings.login_lockout_minutes,
+        invite_max_attempts=settings.invite_max_attempts,
+        trial_banner_window_days=settings.trial_banner_window_days,
+        trial_reminder_window_days=settings.trial_reminder_window_days,
+    )
 
 
 @router.get(
@@ -263,9 +288,7 @@ def get_platform_settings(db: Session = Depends(get_db)):
 
     settings = get_or_create_platform_settings(db)
     db.commit()
-    return PlatformSettingsResponse(
-        invite_expire_days=settings.invite_expire_days, default_trial_days=settings.default_trial_days
-    )
+    return _platform_settings_response(settings)
 
 
 @router.put(
@@ -280,14 +303,30 @@ def update_platform_settings(payload: PlatformSettingsUpdate, db: Session = Depe
         raise HTTPException(status_code=422, detail="invite_expire_days must be at least 1.")
     if payload.default_trial_days < 0:
         raise HTTPException(status_code=422, detail="default_trial_days must be zero or positive.")
+    if payload.otp_expire_minutes < 1:
+        raise HTTPException(status_code=422, detail="otp_expire_minutes must be at least 1.")
+    if payload.login_lockout_max_attempts < 1:
+        raise HTTPException(status_code=422, detail="login_lockout_max_attempts must be at least 1.")
+    if payload.login_lockout_minutes < 1:
+        raise HTTPException(status_code=422, detail="login_lockout_minutes must be at least 1.")
+    if payload.invite_max_attempts < 1:
+        raise HTTPException(status_code=422, detail="invite_max_attempts must be at least 1.")
+    if payload.trial_banner_window_days < 0:
+        raise HTTPException(status_code=422, detail="trial_banner_window_days must be zero or positive.")
+    if payload.trial_reminder_window_days < 0:
+        raise HTTPException(status_code=422, detail="trial_reminder_window_days must be zero or positive.")
 
     settings = get_or_create_platform_settings(db)
     settings.invite_expire_days = payload.invite_expire_days
     settings.default_trial_days = payload.default_trial_days
+    settings.otp_expire_minutes = payload.otp_expire_minutes
+    settings.login_lockout_max_attempts = payload.login_lockout_max_attempts
+    settings.login_lockout_minutes = payload.login_lockout_minutes
+    settings.invite_max_attempts = payload.invite_max_attempts
+    settings.trial_banner_window_days = payload.trial_banner_window_days
+    settings.trial_reminder_window_days = payload.trial_reminder_window_days
     db.commit()
-    return PlatformSettingsResponse(
-        invite_expire_days=settings.invite_expire_days, default_trial_days=settings.default_trial_days
-    )
+    return _platform_settings_response(settings)
 
 
 @router.get(

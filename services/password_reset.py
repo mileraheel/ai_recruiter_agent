@@ -15,8 +15,7 @@ from sqlalchemy.orm import Session
 
 from api.auth import generate_otp, hash_otp, hash_password, verify_otp
 from db.models import AdminUser, Candidate, PasswordResetToken, Staff, SuperUser
-
-OTP_EXPIRE_MINUTES = 30
+from services.platform_settings_service import get_or_create_platform_settings
 
 
 def _naive_to_utc(dt):
@@ -24,12 +23,13 @@ def _naive_to_utc(dt):
 
 
 def create_reset_token(session: Session, account_type: str, account_id: int) -> str:
+    settings = get_or_create_platform_settings(session)
     otp = generate_otp()
     token = PasswordResetToken(
         account_type=account_type,
         account_id=account_id,
         otp_hash=hash_otp(otp),
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRE_MINUTES),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.otp_expire_minutes),
     )
     session.add(token)
     session.commit()

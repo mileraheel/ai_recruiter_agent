@@ -875,6 +875,24 @@ class PlatformSettings(Base):
     # can still type a different number per org) -- was a hardcoded
     # constant (trial_service.DEFAULT_TRIAL_DAYS) until now.
     default_trial_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
+    # How long a password-reset OTP stays valid -- was
+    # password_reset.OTP_EXPIRE_MINUTES.
+    otp_expire_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
+    # Login lockout policy for staff/superuser (not org-scoped) and the
+    # fallback for admin/candidate accounts with no organization yet --
+    # org-scoped admin/candidate logins use
+    # Organization.max_failed_login_attempts/lockout_minutes instead, set
+    # per org. Was rate_limit.MAX_FAILED_ATTEMPTS/LOCKOUT_MINUTES.
+    login_lockout_max_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    login_lockout_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
+    # How many wrong codes an invite OTP tolerates before it's dead --
+    # was a hardcoded column default on Invite.max_attempts.
+    invite_max_attempts: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    # In-app "expiring soon" banner and reminder-email lead time for
+    # trial/subscription expiry -- were duplicated hardcoded constants
+    # in trial_service.py and frontend/src/components/TrialBanner.jsx.
+    trial_banner_window_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    trial_reminder_window_days: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

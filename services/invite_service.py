@@ -50,6 +50,7 @@ def create_invite(
         invited_by_id=invited_by_id,
         otp_hash=hash_otp(otp),
         expires_at=datetime.now(timezone.utc) + timedelta(days=settings.invite_expire_days),
+        max_attempts=settings.invite_max_attempts,
     )
     session.add(invite)
     session.commit()

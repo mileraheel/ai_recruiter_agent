@@ -10,13 +10,14 @@ Two independent expiry clocks, both optional:
     overall org has no expiry, but one particular candidate on the
     bench does).
 
-Both are surfaced the same way: a person logging in within
-REMINDER_WINDOW_DAYS of an unexpired date sees a short-lived banner
-(frontend-only, computed from the expiry date every login -- no
-separate "have I shown this" flag needed there). Separately, an actual
-reminder EMAIL only goes out once per expiry, guarded by the
-trial_reminder_sent_at fields -- that dedup happens here since email
-sending, unlike a UI banner, has a real external side effect.
+Both are surfaced two ways: a person logging in within
+PlatformSettings.trial_banner_window_days of an unexpired date sees a
+short-lived in-app banner (frontend-only, computed from the expiry
+date every login -- no separate "have I shown this" flag needed
+there). Separately, an actual reminder EMAIL goes out once per expiry,
+within PlatformSettings.trial_reminder_window_days of expiry, guarded
+by the trial_reminder_sent_at fields -- that dedup happens here since
+email sending, unlike a UI banner, has a real external side effect.
 """
 from __future__ import annotations
 
@@ -32,8 +33,6 @@ from services.email_sender import send_trial_reminder_email
 # settings row exists, which get_or_create_platform_settings guarantees
 # on first access anyway).
 DEFAULT_TRIAL_DAYS = 14
-BANNER_WINDOW_DAYS = 7  # show the in-app "expiring soon" banner within this many days
-REMINDER_WINDOW_DAYS = 2  # send the actual reminder EMAIL this many days before expiry (or sooner)
 
 
 def get_default_trial_days(session: Session) -> int:
@@ -43,6 +42,24 @@ def get_default_trial_days(session: Session) -> int:
     from services.platform_settings_service import get_or_create_platform_settings
 
     return get_or_create_platform_settings(session).default_trial_days
+
+
+def get_trial_banner_window_days(session: Session) -> int:
+    """Show the in-app "expiring soon" banner within this many days of
+    expiry (PlatformSettings.trial_banner_window_days) -- surfaced to
+    the frontend via OrganizationSettingsResponse/candidate /subscription
+    so TrialBanner.jsx doesn't hardcode its own copy of this number."""
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    return get_or_create_platform_settings(session).trial_banner_window_days
+
+
+def get_trial_reminder_window_days(session: Session) -> int:
+    """Send the actual reminder EMAIL this many days before expiry, or
+    sooner (PlatformSettings.trial_reminder_window_days)."""
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    return get_or_create_platform_settings(session).trial_reminder_window_days
 
 
 def days_remaining(expires_at: date | None, today: date | None = None) -> int | None:
@@ -125,11 +142,11 @@ def _admin_recipient_email(session: Session, organization_id: int) -> str | None
 def check_and_send_trial_reminders(session: Session, today: date | None = None) -> dict:
     """Scans every organization and every subscription with an expiry
     set, and sends a one-time reminder email to anything landing within
-    REMINDER_WINDOW_DAYS (inclusive of already-expired -- someone whose
-    trial lapsed over a weekend before this ran should still hear about
-    it once). Returns counts for logging/testing, never raises on an
-    individual email failure -- one bad address shouldn't stop the
-    whole scan.
+    the configured reminder window (inclusive of already-expired --
+    someone whose trial lapsed over a weekend before this ran should
+    still hear about it once). Returns counts for logging/testing,
+    never raises on an individual email failure -- one bad address
+    shouldn't stop the whole scan.
 
     Meant to be run periodically (see api/routers/superuser.py's
     /trial-reminders/run for a manually-triggerable version, and
@@ -137,6 +154,7 @@ def check_and_send_trial_reminders(session: Session, today: date | None = None) 
     loop) -- same pattern as services/file_watcher.py's watch cycle.
     """
     today = today or datetime.now(timezone.utc).date()
+    reminder_window_days = get_trial_reminder_window_days(session)
     org_reminders_sent = 0
     org_reminders_failed = 0
     candidate_reminders_sent = 0
@@ -153,7 +171,7 @@ def check_and_send_trial_reminders(session: Session, today: date | None = None) 
     )
     for org in orgs:
         remaining = days_remaining(org.trial_expires_at, today)
-        if remaining is None or remaining > REMINDER_WINDOW_DAYS:
+        if remaining is None or remaining > reminder_window_days:
             continue
         recipient = _admin_recipient_email(session, org.id)
         if not recipient:
@@ -176,7 +194,7 @@ def check_and_send_trial_reminders(session: Session, today: date | None = None) 
     )
     for sub in subs:
         remaining = days_remaining(sub.current_period_end, today)
-        if remaining is None or remaining > REMINDER_WINDOW_DAYS:
+        if remaining is None or remaining > reminder_window_days:
             continue
         candidate = session.query(Candidate).filter_by(id=sub.candidate_id).one_or_none()
         if candidate is None or not candidate.login_email:

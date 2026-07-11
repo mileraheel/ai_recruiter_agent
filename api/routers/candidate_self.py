@@ -170,7 +170,7 @@ async def upload_resume(
 @router.get("/subscription")
 def get_my_subscription(candidate: Candidate = Depends(get_current_candidate), db: Session = Depends(get_db)):
     from services.billing_service import get_or_create_subscription
-    from services.trial_service import days_remaining
+    from services.trial_service import days_remaining, get_trial_banner_window_days
 
     sub = get_or_create_subscription(db, candidate)
     db.commit()
@@ -193,6 +193,7 @@ def get_my_subscription(candidate: Candidate = Depends(get_current_candidate), d
         "current_period_end": sub.current_period_end.isoformat() if sub.current_period_end else None,
         "trial_expires_at": effective_expires_at.isoformat() if effective_expires_at else None,
         "trial_days_remaining": days_remaining(effective_expires_at),
+        "trial_banner_window_days": get_trial_banner_window_days(db),
     }
 
 

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
-const BANNER_WINDOW_DAYS = 7;
 const AUTO_DISMISS_MS = 6000;
 const SESSION_KEY = "ai_recruiter_trial_banner_shown";
 
@@ -20,8 +19,10 @@ function formatDate(isoDate) {
 
 /**
  * Shows a short-lived top banner once per login session when the
- * signed-in account's trial/subscription is within BANNER_WINDOW_DAYS
- * of expiring. Admins see their organization's trial; candidates see
+ * signed-in account's trial/subscription is within the platform-wide
+ * configured window (PlatformSettings.trial_banner_window_days,
+ * returned alongside trial_days_remaining by both endpoints below) of
+ * expiring. Admins see their organization's trial; candidates see
  * whichever of their own subscription or their org's trial expires
  * sooner (see api/routers/candidate_self.py::get_my_subscription).
  * Staff and superusers don't have a personal trial, so this renders
@@ -42,7 +43,7 @@ export default function TrialBanner() {
         const daysRemaining = data.trial_days_remaining;
         const expiresAt = data.trial_expires_at;
         if (daysRemaining === null || daysRemaining === undefined) return;
-        if (daysRemaining > BANNER_WINDOW_DAYS) return;
+        if (daysRemaining > data.trial_banner_window_days) return;
 
         setInfo({ daysRemaining, expiresAt });
         setVisible(true);

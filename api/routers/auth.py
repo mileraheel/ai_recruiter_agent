@@ -84,10 +84,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     # so it doesn't leak account existence to the caller.
     existing = db.query(AdminUser).filter_by(username=form_data.username).one_or_none()
     org = db.query(Organization).filter_by(id=existing.organization_id).one_or_none() if existing else None
-    from services.rate_limit import LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS
+    from services.rate_limit import get_default_lockout_policy
 
-    max_attempts = org.max_failed_login_attempts if org else MAX_FAILED_ATTEMPTS
-    lockout_minutes = org.lockout_minutes if org else LOCKOUT_MINUTES
+    default_attempts, default_minutes = get_default_lockout_policy(db)
+    max_attempts = org.max_failed_login_attempts if org else default_attempts
+    lockout_minutes = org.lockout_minutes if org else default_minutes
 
     user = authenticate_admin(db, form_data.username, form_data.password)
     if not user:
