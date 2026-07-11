@@ -514,8 +514,13 @@ def create_organization(
     from services.platform_settings_service import get_or_create_platform_settings
 
     settings = get_or_create_platform_settings(db)
+    # For an 'individual' account, org_name is just the invitee's own
+    # email address (auto-derived for DB uniqueness) -- showing that
+    # back to them as if it were a company name reads as a bug, so the
+    # email gets no organization name at all in that case.
+    email_org_name = org_name if payload.account_type == "agency" else None
     try:
-        send_invite_email(db, payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
+        send_invite_email(db, payload.admin_email, otp, "admin", email_org_name, settings.invite_expire_days)
     except RuntimeError as e:
         # Nothing sent means nothing should be left behind -- otherwise
         # this org's name is permanently taken with no invite anyone can

@@ -21,6 +21,8 @@ from email.mime.text import MIMEText
 
 from sqlalchemy.orm import Session
 
+from config.app_info import APP_NAME
+
 logger = logging.getLogger(__name__)
 
 
@@ -103,22 +105,31 @@ def send_email(session: Session, to_email: str, subject: str, body_text: str) ->
 def send_invite_email(
     session: Session, to_email: str, otp: str, role: str, organization_name: str | None, expire_days: int
 ) -> None:
-    role_labels = {"admin": "admin", "candidate": "candidate", "staff": "staff member"}
+    """organization_name is None for a staff invite (not org-scoped) and
+    should ALSO be passed as None by the caller for a standalone
+    'individual' account -- that org's internal DB name is auto-derived
+    from the invitee's own email address for uniqueness (see
+    api/routers/superuser.py / staff.py), and showing someone their own
+    email address back to them as if it were a company name reads as a
+    bug, not a feature."""
+    role_labels = {"admin": "an admin", "candidate": "a candidate", "staff": "a staff member"}
     role_label = role_labels.get(role, role)
-    if role == "staff":
-        subject = "You're invited to join the platform as staff"
-        intro = "You've been invited to join the platform as a staff member."
+
+    if organization_name:
+        subject = f"{APP_NAME} invites you to join {organization_name}"
+        intro = f"You've been invited to join {organization_name} on {APP_NAME} as {role_label}."
     else:
-        subject = f"You're invited to join {organization_name}"
-        intro = f"You've been invited to join {organization_name} as a {role_label}."
+        subject = f"{APP_NAME} invites you to get started"
+        intro = f"You've been invited to set up your account on {APP_NAME}."
 
     day_word = "day" if expire_days == 1 else "days"
     body = (
         f"{intro}\n\n"
-        f"Your one-time code: {otp}\n"
-        f"This code expires in {expire_days} {day_word} and can only be used once.\n\n"
-        f"Open the app, choose 'I have an invite', and enter this email address "
-        f"along with the code to set your password and get started."
+        f"Your one-time verification code: {otp}\n"
+        f"This code is valid for {expire_days} {day_word} and can only be used once.\n\n"
+        f"To get started, open {APP_NAME}, select \"I have an invite,\" and enter this email "
+        f"address along with the code above to set your password.\n\n"
+        f"If you weren't expecting this invitation, you can safely ignore this email."
     )
     send_email(session, to_email, subject, body)
 
@@ -144,12 +155,14 @@ def send_password_reset_email(session: Session, to_email: str, otp: str) -> None
     reset_link = f"{base_url}/reset-password?email={to_email}&otp={otp}"
     minute_word = "minute" if expire_minutes == 1 else "minutes"
     body = (
-        f"Click the link below to set a new password:\n{reset_link}\n\n"
+        f"We received a request to reset your {APP_NAME} password.\n\n"
+        f"Click the link below to choose a new one:\n{reset_link}\n\n"
         f"Or enter this code manually: {otp}\n"
-        f"This code expires in {expire_minutes} {minute_word}."
+        f"This code expires in {expire_minutes} {minute_word}.\n\n"
+        f"If you didn't request this, you can safely ignore this email -- your password won't be changed."
     )
     try:
-        send_email(session, to_email, "Reset your password", body)
+        send_email(session, to_email, f"Reset your {APP_NAME} password", body)
     except RuntimeError:
         logger.info(f"[dev] SMTP not configured -- password reset link for {to_email}: {reset_link}")
 
@@ -160,11 +173,12 @@ def send_trial_reminder_email(session: Session, to_email: str, expires_at, accou
     expiry by services/trial_service.py, which owns the dedup logic;
     this function just formats and sends -- it doesn't decide whether
     to send."""
-    subject = "Your subscription is expiring soon"
+    subject = f"Your {APP_NAME} subscription is expiring soon"
     who = f" for {account_label}" if account_label else ""
     body = (
-        f"This is a reminder that your subscription{who} expires on {expires_at.isoformat()}.\n\n"
-        f"Please get in touch with your sales person to renew, or simply reply to this "
-        f"email and we'll follow up."
+        f"This is a friendly reminder that your {APP_NAME} subscription{who} is set to expire "
+        f"on {expires_at.isoformat()}.\n\n"
+        f"To keep things running without interruption, get in touch with your sales person to "
+        f"renew -- or simply reply to this email and we'll follow up."
     )
     send_email(session, to_email, subject, body)

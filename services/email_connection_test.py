@@ -27,6 +27,8 @@ import time
 import uuid
 from email.mime.text import MIMEText
 
+from config.app_info import APP_NAME
+
 CONNECT_TIMEOUT_SECONDS = 15
 IMAP_POLL_TIMEOUT_SECONDS = 25
 IMAP_POLL_INTERVAL_SECONDS = 2.5
@@ -35,11 +37,11 @@ IMAP_POLL_INTERVAL_SECONDS = 2.5
 def _send_test_email(
     smtp_host: str, smtp_port: int, username: str, password: str, account_email: str, marker: str
 ) -> str:
-    subject = f"RolePace connection test {marker}"
+    subject = f"{APP_NAME} connection test {marker}"
     msg = MIMEText(
-        "This is an automated test from RolePace confirming your email connection "
-        "details work end-to-end (sending and receiving). You can ignore or delete "
-        "this message."
+        f"This is an automated test from {APP_NAME} confirming your email connection "
+        f"details work end-to-end (sending and receiving). You can ignore or delete "
+        f"this message."
     )
     msg["Subject"] = subject
     msg["From"] = account_email
