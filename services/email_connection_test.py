@@ -1,12 +1,19 @@
 """
-Verifies a manually-entered SMTP/IMAP credential actually works BEFORE
-it's saved -- sends a real test email to the account's own address via
-SMTP, then polls that same account's inbox via IMAP for its arrival.
-Both directions have to succeed before api/routers/email_account.py's
-connect_smtp saves anything to EmailAccountCredential; a typo'd host,
-port, or password would otherwise save as "connected" and only surface
-as a failure much later, when the app silently can't send or read on
-the user's behalf.
+Verifies a manually-entered SMTP (and, where relevant, IMAP) credential
+actually works BEFORE it's saved -- a typo'd host, port, or password
+would otherwise save as "connected"/"configured" and only surface as a
+failure much later, when the app silently can't send (or read) on
+someone's behalf.
+
+Two entry points:
+  - verify_smtp_imap_roundtrip: sends a test email via SMTP, then polls
+    the same inbox via IMAP for its arrival. Used by
+    api/routers/email_account.py's connect_smtp for a user's own
+    connected account, which needs to both send AND receive.
+  - verify_smtp_send: SMTP only, no IMAP. Used by api/routers/superuser.py's
+    system-email config -- the app's own outbound account never needs
+    to read replies to its own system emails, so there's no inbox to
+    poll.
 
 Not used for the Gmail OAuth path -- a successful token exchange there
 already proves the account is reachable, and Gmail's send/read paths
@@ -104,3 +111,11 @@ def verify_smtp_imap_roundtrip(
     marker = uuid.uuid4().hex[:8]
     subject = _send_test_email(smtp_host, smtp_port, username, password, account_email, marker)
     _wait_for_test_email(imap_host, imap_port, username, password, subject)
+
+
+def verify_smtp_send(smtp_host: str, smtp_port: int, username: str, password: str, from_email: str) -> None:
+    """SMTP-only check (no IMAP) -- for accounts that only ever send,
+    never receive, like the app's own system email. Raises ValueError
+    with a user-facing reason on failure."""
+    marker = uuid.uuid4().hex[:8]
+    _send_test_email(smtp_host, smtp_port, username, password, from_email, marker)

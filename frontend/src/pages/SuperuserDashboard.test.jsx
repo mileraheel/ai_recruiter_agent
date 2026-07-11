@@ -11,6 +11,8 @@ vi.mock("../api/client.js", () => ({
     listAllCandidatesPlatformWide: vi.fn(() => Promise.resolve([])),
     getPlatformSettings: vi.fn(() => Promise.resolve({ invite_expire_days: 7, default_trial_days: 14 })),
     updatePlatformSettings: vi.fn(),
+    getSystemEmail: vi.fn(() => Promise.resolve({ configured: false, source: "unset" })),
+    updateSystemEmail: vi.fn(),
     listStatuses: vi.fn(() => Promise.resolve([])),
     changeOrganizationStatus: vi.fn(),
     extendOrganizationTrial: vi.fn(),

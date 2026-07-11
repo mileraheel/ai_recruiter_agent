@@ -124,7 +124,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     # not confirm/deny account existence to whoever's asking.
     if account is not None:
         otp = create_reset_token(db, "admin", account.id)
-        send_password_reset_email(account.email, otp)
+        send_password_reset_email(db, account.email, otp)
     return {"message": "If an account exists for that email, a reset code has been sent."}
 
 
@@ -236,7 +236,7 @@ def password_reset_request(payload: UnifiedForgotPasswordRequest, db: Session = 
     # not confirm/deny account existence to whoever's asking.
     if account is not None:
         otp = create_reset_token(db, account_type, account.id)
-        send_password_reset_email(email, otp)
+        send_password_reset_email(db, email, otp)
     return {"message": "If an account exists for that email, a reset code has been sent."}
 
 

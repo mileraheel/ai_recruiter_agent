@@ -893,6 +893,22 @@ class PlatformSettings(Base):
     # in trial_service.py and frontend/src/components/TrialBanner.jsx.
     trial_banner_window_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
     trial_reminder_window_days: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
+    # The app's OWN outbound email account -- sends invite/password-reset/
+    # trial-reminder emails. Deliberately distinct from any individual
+    # user's own connected EmailAccountCredential (owner_type/owner_id
+    # scoped, used for THAT user's outreach sending): this is a single
+    # platform-wide identity, superuser-editable here instead of only
+    # settable via .env's SMTP_* vars. All nullable -- unset means
+    # services/email_sender.py falls back to .env, so existing
+    # deployments keep working until a superuser configures this here.
+    # Only outgoing (no IMAP fields) since the app never needs to read
+    # replies to its own system emails.
+    system_smtp_host: Mapped[str | None] = mapped_column(String)
+    system_smtp_port: Mapped[int | None] = mapped_column(Integer)
+    system_smtp_username: Mapped[str | None] = mapped_column(String)
+    system_smtp_encrypted_password: Mapped[str | None] = mapped_column(String)
+    system_smtp_from_email: Mapped[str | None] = mapped_column(String)
+    system_smtp_from_name: Mapped[str | None] = mapped_column(String)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

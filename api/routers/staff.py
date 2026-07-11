@@ -76,7 +76,7 @@ def invite_organization(
 
     settings = get_or_create_platform_settings(db)
     try:
-        send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
+        send_invite_email(db, payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
         # Nothing sent means nothing should be left behind -- otherwise
         # this org's name is permanently taken with no invite anyone can

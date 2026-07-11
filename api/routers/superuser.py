@@ -155,7 +155,7 @@ def invite_staff(
         invited_by_type="superuser", invited_by_id=superuser.id,
     )
     try:
-        send_invite_email(payload.email, otp, "staff", None, settings.invite_expire_days)
+        send_invite_email(db, payload.email, otp, "staff", None, settings.invite_expire_days)
     except RuntimeError as e:
         db.rollback()
         raise HTTPException(status_code=502, detail=f"Could not invite staff member: email failed to send: {e}")
@@ -331,6 +331,113 @@ def update_platform_settings(payload: PlatformSettingsUpdate, db: Session = Depe
     return _platform_settings_response(settings)
 
 
+class SystemEmailResponse(BaseModel):
+    # "database" once a superuser has configured this here; "env" means
+    # it's still falling back to .env's SMTP_* vars; "unset" means
+    # neither is configured and system emails (invites, resets,
+    # reminders) currently can't send at all. Never includes the
+    # password -- once saved, no endpoint reads it back out.
+    configured: bool
+    source: str
+    smtp_host: str | None = None
+    smtp_port: int | None = None
+    smtp_username: str | None = None
+    from_email: str | None = None
+    from_name: str | None = None
+
+
+class SystemEmailUpdate(BaseModel):
+    smtp_host: str
+    smtp_port: int
+    smtp_username: str
+    from_email: str
+    from_name: str | None = None
+    # Optional on update -- omit to keep whatever's already encrypted
+    # and saved, same "never ask to retype an existing secret" pattern
+    # used by every other password-bearing field in this app. Required
+    # the first time this is configured.
+    password: str | None = None
+
+
+def _system_email_response(settings) -> "SystemEmailResponse":
+    import os
+
+    if settings.system_smtp_host:
+        return SystemEmailResponse(
+            configured=True,
+            source="database",
+            smtp_host=settings.system_smtp_host,
+            smtp_port=settings.system_smtp_port,
+            smtp_username=settings.system_smtp_username,
+            from_email=settings.system_smtp_from_email,
+            from_name=settings.system_smtp_from_name,
+        )
+    if os.environ.get("SMTP_HOST"):
+        return SystemEmailResponse(
+            configured=True,
+            source="env",
+            smtp_host=os.environ.get("SMTP_HOST"),
+            smtp_port=int(os.environ["SMTP_PORT"]) if os.environ.get("SMTP_PORT") else None,
+            smtp_username=os.environ.get("SMTP_USERNAME"),
+            from_email=os.environ.get("SMTP_FROM_EMAIL"),
+            from_name=os.environ.get("SMTP_FROM_NAME"),
+        )
+    return SystemEmailResponse(configured=False, source="unset")
+
+
+@router.get(
+    "/api/superuser/system-email",
+    response_model=SystemEmailResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def get_system_email(db: Session = Depends(get_db)):
+    """The app's OWN outbound email account -- sends invite/password-
+    reset/trial-reminder emails. Distinct from a superuser's personal
+    connected email (GET /api/me/email-account), which is that one
+    person's own outreach-sending account, not the platform's."""
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
+    db.commit()
+    return _system_email_response(settings)
+
+
+@router.put(
+    "/api/superuser/system-email",
+    response_model=SystemEmailResponse,
+    dependencies=[Depends(get_current_superuser)],
+)
+def update_system_email(payload: SystemEmailUpdate, db: Session = Depends(get_db)):
+    from services.crypto import encrypt_secret
+    from services.email_connection_test import verify_smtp_send
+    from services.platform_settings_service import get_or_create_platform_settings
+
+    settings = get_or_create_platform_settings(db)
+    if not payload.password and settings.system_smtp_encrypted_password is None:
+        raise HTTPException(status_code=422, detail="password is required the first time you configure this.")
+
+    password = payload.password or None
+    if password is None:
+        from services.crypto import decrypt_secret
+
+        password = decrypt_secret(settings.system_smtp_encrypted_password)
+
+    try:
+        verify_smtp_send(payload.smtp_host, payload.smtp_port, payload.smtp_username, password, payload.from_email)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    settings.system_smtp_host = payload.smtp_host.strip()
+    settings.system_smtp_port = payload.smtp_port
+    settings.system_smtp_username = payload.smtp_username.strip()
+    settings.system_smtp_from_email = payload.from_email.strip()
+    settings.system_smtp_from_name = (payload.from_name or "").strip() or None
+    if payload.password:
+        settings.system_smtp_encrypted_password = encrypt_secret(payload.password)
+    db.commit()
+    return _system_email_response(settings)
+
+
 @router.get(
     "/api/superuser/statuses",
     response_model=list[StatusResponse],
@@ -408,7 +515,7 @@ def create_organization(
 
     settings = get_or_create_platform_settings(db)
     try:
-        send_invite_email(payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
+        send_invite_email(db, payload.admin_email, otp, "admin", org_name, settings.invite_expire_days)
     except RuntimeError as e:
         # Nothing sent means nothing should be left behind -- otherwise
         # this org's name is permanently taken with no invite anyone can

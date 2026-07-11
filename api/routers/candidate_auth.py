@@ -106,7 +106,7 @@ def forgot_password(payload: CandidateForgotPasswordRequest, db: Session = Depen
     candidate = db.query(Candidate).filter_by(login_email=payload.login_email.strip().lower()).one_or_none()
     if candidate is not None:
         otp = create_reset_token(db, "candidate", candidate.id)
-        send_password_reset_email(candidate.login_email, otp)
+        send_password_reset_email(db, candidate.login_email, otp)
     return {"message": "If an account exists for that email, a reset code has been sent."}
 
 

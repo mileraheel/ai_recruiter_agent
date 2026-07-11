@@ -249,6 +249,8 @@ export const api = {
   listPendingInvites: () => request("/superuser/invites/pending"),
   getPlatformSettings: () => request("/superuser/settings"),
   updatePlatformSettings: (payload) => request("/superuser/settings", { method: "PUT", body: payload }),
+  getSystemEmail: () => request("/superuser/system-email"),
+  updateSystemEmail: (payload) => request("/superuser/system-email", { method: "PUT", body: payload }),
   listStatuses: () => request("/superuser/statuses"),
   extendOrganizationTrial: (organizationId, additionalDays) =>
     request(`/superuser/organizations/${organizationId}/trial`, { method: "PUT", body: { additional_days: additionalDays } }),

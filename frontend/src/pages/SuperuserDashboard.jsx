@@ -236,6 +236,17 @@ export default function SuperuserDashboard() {
   const [settingsError, setSettingsError] = useState(null);
   const [settingsSuccess, setSettingsSuccess] = useState(null);
 
+  const [systemEmail, setSystemEmail] = useState(null); // GET /superuser/system-email response
+  const [sysSmtpHost, setSysSmtpHost] = useState("");
+  const [sysSmtpPort, setSysSmtpPort] = useState("");
+  const [sysSmtpUsername, setSysSmtpUsername] = useState("");
+  const [sysFromEmail, setSysFromEmail] = useState("");
+  const [sysFromName, setSysFromName] = useState("");
+  const [sysPassword, setSysPassword] = useState(""); // never pre-filled -- write-only
+  const [savingSystemEmail, setSavingSystemEmail] = useState(false);
+  const [systemEmailError, setSystemEmailError] = useState(null);
+  const [systemEmailSuccess, setSystemEmailSuccess] = useState(null);
+
   useEffect(() => {
     // Cheap fetches needed regardless of which tab is active -- settings
     // feed both the Configs tab and the trial-days default on the org
@@ -248,6 +259,17 @@ export default function SuperuserDashboard() {
       })
       .catch(() => {});
     api.listStatuses().then(setStatuses).catch(() => {});
+    api
+      .getSystemEmail()
+      .then((s) => {
+        setSystemEmail(s);
+        setSysSmtpHost(s.smtp_host || "");
+        setSysSmtpPort(s.smtp_port ? String(s.smtp_port) : "");
+        setSysSmtpUsername(s.smtp_username || "");
+        setSysFromEmail(s.from_email || "");
+        setSysFromName(s.from_name || "");
+      })
+      .catch(() => {});
   }, []);
 
   function setSettingField(field, value) {
@@ -351,6 +373,30 @@ export default function SuperuserDashboard() {
       setSettingsError(err.detail || "Failed to save settings");
     } finally {
       setSavingSettings(false);
+    }
+  }
+
+  async function handleSaveSystemEmail(e) {
+    e.preventDefault();
+    setSavingSystemEmail(true);
+    setSystemEmailError(null);
+    setSystemEmailSuccess(null);
+    try {
+      const res = await api.updateSystemEmail({
+        smtp_host: sysSmtpHost,
+        smtp_port: Number(sysSmtpPort),
+        smtp_username: sysSmtpUsername,
+        from_email: sysFromEmail,
+        from_name: sysFromName || null,
+        password: sysPassword || undefined, // omit to keep the existing password unchanged
+      });
+      setSystemEmail(res);
+      setSysPassword("");
+      setSystemEmailSuccess("Saved — a test email sent successfully using these details.");
+    } catch (err) {
+      setSystemEmailError(err.detail || "Failed to save system email settings");
+    } finally {
+      setSavingSystemEmail(false);
     }
   }
 
@@ -613,6 +659,114 @@ export default function SuperuserDashboard() {
 
       {tab === "configs" && (
         <div className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold tracking-tight">System email (outgoing)</h2>
+            <p className="text-xs text-ink/50">
+              The account RolePace itself sends invite, password-reset, and trial-reminder emails
+              from — distinct from your own personal connected email (in your Profile). Every
+              invite on the platform depends on this being configured correctly.
+            </p>
+            <form onSubmit={handleSaveSystemEmail} className="rounded-xl border border-ink/10 p-4 space-y-3">
+              <span
+                className={`inline-flex text-xs rounded-full px-2.5 py-1 font-medium ${
+                  systemEmail?.configured ? "bg-accentSoft text-accent" : "bg-warnSoft text-warn"
+                }`}
+              >
+                {systemEmail?.configured
+                  ? systemEmail.source === "database"
+                    ? "Configured here"
+                    : "Configured via .env — save here to take it over"
+                  : "Not configured — invites/resets/reminders can't send"}
+              </span>
+              <div className="grid sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-medium text-ink/60 mb-1">SMTP host</label>
+                  <input
+                    type="text"
+                    value={sysSmtpHost}
+                    onChange={(e) => setSysSmtpHost(e.target.value)}
+                    placeholder="smtppro.example.com"
+                    required
+                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink/60 mb-1">Port</label>
+                  <input
+                    type="number"
+                    value={sysSmtpPort}
+                    onChange={(e) => setSysSmtpPort(e.target.value)}
+                    placeholder="465"
+                    required
+                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink/60 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={sysSmtpUsername}
+                  onChange={(e) => setSysSmtpUsername(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-ink/60 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={sysPassword}
+                  onChange={(e) => setSysPassword(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder={systemEmail?.source === "database" ? "Leave blank to keep the current password" : ""}
+                  required={systemEmail?.source !== "database"}
+                  className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-medium text-ink/60 mb-1">From email</label>
+                  <input
+                    type="email"
+                    value={sysFromEmail}
+                    onChange={(e) => setSysFromEmail(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink/60 mb-1">From name (optional)</label>
+                  <input
+                    type="text"
+                    value={sysFromName}
+                    onChange={(e) => setSysFromName(e.target.value)}
+                    className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <p className="rounded-lg bg-accentSoft text-accent text-xs px-3 py-2 font-medium">
+                🔒 This password is encrypted before it's stored. No one — including RolePace staff —
+                can ever view or retrieve it again.
+              </p>
+              <p className="rounded-lg bg-ink/5 text-ink/60 text-xs px-3 py-2">
+                Before saving, RolePace will send a test email to the "From" address using these
+                details and confirm it sends successfully. This can take a few seconds.
+              </p>
+              <button
+                type="submit"
+                disabled={savingSystemEmail}
+                className="btn btn-primary btn-small disabled:opacity-50"
+              >
+                {savingSystemEmail ? "Testing & saving…" : "Test & save"}
+              </button>
+              {systemEmailError && <div className="rounded-lg bg-dangerSoft text-danger text-sm px-3 py-2">{systemEmailError}</div>}
+              {systemEmailSuccess && (
+                <div className="rounded-lg bg-accentSoft text-accent text-sm px-3 py-2">{systemEmailSuccess}</div>
+              )}
+            </form>
+          </div>
+
           <div className="space-y-3">
             <h2 className="text-sm font-semibold tracking-tight">Platform settings</h2>
             <form onSubmit={handleSaveSettings} className="rounded-xl border border-ink/10 p-4 space-y-5">

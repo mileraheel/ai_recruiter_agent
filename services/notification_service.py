@@ -53,7 +53,7 @@ def notify(
         from services.email_sender import send_email
 
         try:
-            send_email(email_address, title, body)
+            send_email(session, email_address, title, body)
             return "email"
         except RuntimeError:
             pass  # SMTP not configured either -- nothing more we can do

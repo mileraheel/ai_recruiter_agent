@@ -177,7 +177,7 @@ def check_and_send_trial_reminders(session: Session, today: date | None = None) 
         if not recipient:
             continue
         try:
-            send_trial_reminder_email(recipient, org.trial_expires_at, account_label=org.name)
+            send_trial_reminder_email(session, recipient, org.trial_expires_at, account_label=org.name)
             org.trial_reminder_sent_at = datetime.now(timezone.utc)
             org_reminders_sent += 1
         except RuntimeError:
@@ -200,7 +200,7 @@ def check_and_send_trial_reminders(session: Session, today: date | None = None) 
         if candidate is None or not candidate.login_email:
             continue
         try:
-            send_trial_reminder_email(candidate.login_email, sub.current_period_end, account_label=candidate.full_name)
+            send_trial_reminder_email(session, candidate.login_email, sub.current_period_end, account_label=candidate.full_name)
             sub.trial_reminder_sent_at = datetime.now(timezone.utc)
             candidate_reminders_sent += 1
         except RuntimeError:
