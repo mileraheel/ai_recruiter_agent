@@ -52,8 +52,25 @@ export default function EmailAccountCard() {
 
   async function handleSmtpSubmit(e) {
     e.preventDefault();
-    setSavingSmtp(true);
     setError(null);
+
+    // Catches the single most common mistake here instantly, before
+    // wasting a ~30s round-trip test on it: pasting the two hosts into
+    // the wrong fields (e.g. Zoho's imappro.zoho.com under "Outgoing").
+    if (/imap/i.test(smtpHost)) {
+      setError(
+        `The Outgoing (SMTP) host "${smtpHost}" looks like an IMAP address. Check whether it's swapped with the Incoming (IMAP) host below.`
+      );
+      return;
+    }
+    if (/smtp/i.test(imapHost)) {
+      setError(
+        `The Incoming (IMAP) host "${imapHost}" looks like an SMTP address. Check whether it's swapped with the Outgoing (SMTP) host above.`
+      );
+      return;
+    }
+
+    setSavingSmtp(true);
     try {
       await api.connectSmtp({
         smtp_host: smtpHost,
